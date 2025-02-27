@@ -1,0 +1,10 @@
+algorithme test
+
+var
+  a: entier
+  b: entier
+
+debut
+  a <- 10
+  b <- 90
+fin

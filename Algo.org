@@ -1,0 +1,24 @@
+#+title: Algo
+
+
+* Hello World
+#+begin_src algo
+algorithme helloWorld
+
+var x: entier
+
+// Comment
+
+debut
+  x <- 10
+  écrire("Hello World")
+fin
+#+end_src
+
+* Data Types
+- =entier=: =i64= in Zig
+- =réel=: =f64= in Zig
+- =caractère=: =char= in C
+- =booléen=: =bool= in Zig
+- =chaîne=: =string= in a hightlevel language
+- DOCUMENT ARRAYS
