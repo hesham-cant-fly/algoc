@@ -8,10 +8,11 @@ algorithme helloWorld
 var x: entier
 
 // Comment
-/* Multi
+/*
+Multi
 line
 comment
- ,*/
+*/
 
 debut
   x <- 10
