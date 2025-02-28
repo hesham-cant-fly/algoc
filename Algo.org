@@ -8,10 +8,15 @@ algorithme helloWorld
 var x: entier
 
 // Comment
+/* Multi
+line
+comment
+ ,*/
 
 debut
   x <- 10
   écrire("Hello World")
+  dbg x
 fin
 #+end_src
 

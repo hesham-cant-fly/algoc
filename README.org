@@ -9,7 +9,7 @@ Currently, the only way to try Algo is by building it yourself. To get started, 
 
 ** Editor support
 *** neovim
-- using lazyvim
+using lazyvim
 #+begin_src lua
 {
   "hesham-cant-fly/algo.nvim",
@@ -18,7 +18,7 @@ Currently, the only way to try Algo is by building it yourself. To get started, 
 #+end_src
 
 *** Emacs
-- Soon...
+Soon...
 
 *** vs code
-- Soon...
+Soon...
