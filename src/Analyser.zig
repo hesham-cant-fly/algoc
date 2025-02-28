@@ -2,6 +2,8 @@ const std = @import("std");
 const root = @import("root").root;
 
 const Type = root.Type;
+const TokenKind = root.TokenKind;
+const Primitive = root.Primitive;
 const Token = root.Token;
 const AST = root.AST;
 const OpReg = root.OpReg;
@@ -293,14 +295,32 @@ pub const Analyser = struct {
         const lhs = try self.analyse_expression(node.lhs);
         const rhs = try self.analyse_expression(node.rhs);
 
+        const res_tp = self.binary_type(node.op, lhs, rhs);
+
         const instruction = ContextIR.Instruction.create(self.ctx.allocator);
         instruction.op = ContextIR.InstructionKind.from_token_kind(node.op.kind);
         instruction.operand1 = lhs.constant;
         instruction.operand2 = rhs.constant;
-        instruction.result_type = rhs.tp; // TODO: The resulted type of a binary expression should be specified in here
+        instruction.result_type = res_tp; // TODO: The resulted type of a binary expression should be specified in here
         self.ctx.add_instruction(instruction);
 
-        return ExprTypeInfo{ .constant = null, .symbol = null, .tp = rhs.tp };
+        return ExprTypeInfo{
+            .constant = null,
+            .symbol = null,
+            .tp = res_tp,
+        };
+    }
+
+    fn binary_type(self: *Self, op: Token, lhs: Type, rhs: Type) Error!Type {
+        return switch (op.kind) {
+            .Plus => try self.type_addition(lhs, rhs),
+        };
+    }
+
+    inline fn type_addition(self: *Self, lhs: Type, rhs: Type) Error!Type {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
     }
 };
 
