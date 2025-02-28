@@ -7,4 +7,10 @@ var
 debut
   a <- 10
   b <- 90
+
+  dbg a
+  dbg b
+
+  b <- b + a
+  dbg b
 fin

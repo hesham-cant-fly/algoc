@@ -15,8 +15,13 @@ const keywords = std.StaticStringMap(TokenKind).initComptime(.{
 
     .{ "algorithme", TokenKind.Algorithm },
     .{ "var", TokenKind.Var },
+    .{ "variable", TokenKind.Var },
+    .{ "variables", TokenKind.Var },
     .{ "début", TokenKind.Begin },
+    .{ "debut", TokenKind.Begin },
     .{ "fin", TokenKind.End },
+
+    .{ "dbg", TokenKind.Dbg },
 });
 
 pub const LexerError = error{};

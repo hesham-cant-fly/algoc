@@ -32,6 +32,7 @@ pub const TokenKind = enum(i8) {
     Var,
     Begin,
     End,
+    Dbg,
 };
 
 pub const Token = struct {

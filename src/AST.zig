@@ -156,6 +156,7 @@ pub const StmtNode = union(enum) {
     const Self = StmtNode;
 
     Expr: *Expr,
+    Dbg: *Expr,
 
     pub fn create(allocator: mem.Allocator) *Self {
         return allocator.create(Self) catch @panic("Ouf Of Memory.");
@@ -167,9 +168,16 @@ pub const StmtNode = union(enum) {
         return node;
     }
 
+    pub fn create_dbg(allocator: mem.Allocator, expr: *Expr) *Self {
+        const node = create(allocator);
+        node.* = StmtNode{ .Dbg = expr };
+        return node;
+    }
+
     pub fn free(self: *Self, allocator: mem.Allocator) void {
         switch (self.*) {
             .Expr => |expr| expr.free(allocator),
+            .Dbg => |expr| expr.free(allocator),
         }
         allocator.destroy(self);
     }
@@ -177,6 +185,10 @@ pub const StmtNode = union(enum) {
     pub fn dbg(self: *const Self, ind: usize) void {
         switch (self.*) {
             .Expr => |expr| {
+                expr.dbg(ind + 2);
+            },
+            .Dbg => |expr| {
+                debug.print("dbg:\n", .{});
                 expr.dbg(ind + 2);
             },
         }

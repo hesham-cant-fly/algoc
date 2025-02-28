@@ -39,7 +39,7 @@ pub const Type = union(enum) {
 
     Primitive: Primitive,
 
-    pub fn get_size(self: *Self) usize {
+    pub fn get_size(self: *const Self) usize {
         return switch (self.*) {
             .Primitive => |tp| tp.get_size(),
         };

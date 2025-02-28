@@ -12,10 +12,11 @@ const StringHashMap = std.StringHashMap;
 pub const VarSymbol = struct {
     const Self = VarSymbol;
 
+    index: usize = 0,
     identifier: *const Token,
     tp: Type,
 
-    pub fn get_size(self: *Self) usize {
+    pub fn get_size(self: *const Self) usize {
         return self.tp.get_size();
     }
 
@@ -33,6 +34,7 @@ pub const Context = struct {
 
     algorithm: []const u8 = "",
     variables: StringHashMap(VarSymbol),
+    last_index: usize = 0,
 
     pub fn init(allocator: mem.Allocator) Self {
         return .{
@@ -58,14 +60,19 @@ pub const Context = struct {
         if (self.variables.contains(token.lexem)) {
             return Error.SymbolAlreadyExists;
         }
-        self.variables.put(token.lexem, VarSymbol{ .identifier = token, .tp = tp }) catch @panic("Ouf Of Memory.");
+        const symbol = VarSymbol{ .identifier = token, .tp = tp, .index = self.last_index };
+        self.last_index += symbol.get_size();
+        self.variables.put(
+            token.lexem,
+            symbol,
+        ) catch @panic("Ouf Of Memory.");
     }
 
-    pub fn get_variable(self: *Self, id: []const u8) ?VarSymbol {
+    pub fn get_variable(self: *const Self, id: []const u8) ?VarSymbol {
         return self.variables.get(id);
     }
 
-    pub fn get_global_stack_size(self: *Self) usize {
+    pub fn get_global_stack_size(self: *const Self) usize {
         var size: usize = 0;
         var var_iter = self.variables.iterator();
 
@@ -102,7 +109,7 @@ pub const Analyser = struct {
         self.ctx.dbg();
     }
 
-    pub fn analyse(self: *Self, program: *AST.Program) Error!void {
+    pub fn analyse(self: *Self, program: *AST.Program) Error!Context {
         self.program = program;
 
         self.ctx.algorithm = self.program.algorithme_id.lexem;
@@ -112,6 +119,8 @@ pub const Analyser = struct {
         }
 
         try self.analyse_program_main_block(self.program.program.items);
+
+        return self.ctx;
     }
 
     fn analyse_variable_declaration(self: *Self, node: *const AST.VarDec) Error!void {
@@ -127,8 +136,13 @@ pub const Analyser = struct {
         for (nodes) |node| {
             switch (node.node.*) {
                 .Expr => |expr| _ = try self.analyse_expression(expr),
+                .Dbg => |expr| try self.analyse_dbg(expr),
             }
         }
+    }
+
+    fn analyse_dbg(self: *Self, expr: *AST.Expr) Error!void {
+        _ = try self.analyse_expression(expr);
     }
 
     fn analyse_expression(self: *Self, expr: *AST.Expr) Error!ExprTypeInfo {
@@ -171,10 +185,9 @@ pub const Analyser = struct {
     }
 
     fn analyse_binary_expression(self: *Self, node: *AST.ExprNodeBinary) Error!ExprTypeInfo {
-        // TODO:
-        _ = self;
-        _ = node;
-        unreachable;
+        // TODO: Do a better analysing
+        _ = try self.analyse_expression(node.lhs);
+        return self.analyse_expression(node.rhs);
     }
 };
 

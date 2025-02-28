@@ -15,18 +15,30 @@ pub const Parser = struct {
     const Self = Parser;
 
     allocator: mem.Allocator,
+    content: []const u8,
     tokens: TokenList,
+    program: AST.Program,
     current: usize = 0,
 
     pub const parse_expression = expressions.parse_expression;
     pub const parse_program = statement.parse_program;
 
-    pub fn init(allocator: mem.Allocator, tokens: TokenList) Self {
-        return Parser{ .allocator = allocator, .tokens = tokens };
+    pub fn init(allocator: mem.Allocator, content: []const u8, tokens: TokenList) Self {
+        return Parser{
+            .allocator = allocator,
+            .content = content,
+            .tokens = tokens,
+            .program = AST.Program.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.program.deinit();
     }
 
     pub fn parse(self: *Parser) ParserError!AST.Program {
-        return self.parse_program();
+        try self.parse_program();
+        return self.program;
     }
 
     pub fn peek(self: *const Self) *const Token {
@@ -61,8 +73,11 @@ pub const Parser = struct {
         }
     }
 
-    pub fn consume(self: *Self, kind: TokenKind) ParserError!*const Token {
-        if (!self.check(kind)) return ParserError.UnexpectedToken;
+    pub fn consume(self: *Self, kind: TokenKind, message: []const u8) ParserError!*const Token {
+        if (!self.check(kind)) {
+            root.report_error(self.content, message, self.peek());
+            return ParserError.UnexpectedToken;
+        }
         return self.advance();
     }
 

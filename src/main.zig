@@ -31,22 +31,23 @@ pub fn main() !void {
     var lexer = try Lexer.Lexer.init(alloc, &tokens, text);
     lexer.scan();
 
-    for (tokens.items) |token| {
-        token.dbg();
-    }
-
-    var parser = Parser.Parser.init(alloc, tokens);
+    var parser = Parser.Parser.init(alloc, text, tokens);
+    defer parser.deinit();
     var ast_res = try parser.parse();
-    defer ast_res.deinit();
-
-    ast_res.dbg();
 
     var analyser = root.Analyser.init(alloc);
     defer analyser.deinit();
+    var ctx = try analyser.analyse(&ast_res);
+    // analyser.dbg();
 
-    try analyser.analyse(&ast_res);
+    var compiler = root.Compiler.init(alloc, &ctx, &ast_res);
+    var chunk = compiler.compile();
+    defer chunk.deinit();
 
-    analyser.dbg();
+    var vm = root.Vm.init(alloc, &chunk);
+    defer vm.deinit();
+
+    try vm.run();
 }
 
 fn read_file(path: []const u8, allocator: mem.Allocator) []const u8 {

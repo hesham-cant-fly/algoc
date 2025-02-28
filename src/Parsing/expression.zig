@@ -16,13 +16,15 @@ pub fn parse_expression(self: *Self) Result {
 
 fn parse_assignment(self: *Self) Result {
     const start = self.peek();
-    const lhs = try self.consume(TokenKind.Identifier);
-    if (self.match(TokenKind.Assign)) |op| {
-        const rhs = try parse_term(self);
-        const end = self.prevous();
-        const node = AST.ExprNode.create_assign(self.allocator, op, lhs, rhs);
-        const expr = AST.Expr.create(self.allocator, start, end, node);
-        return expr;
+    if (self.match(TokenKind.Identifier)) |id| {
+        if (self.match(TokenKind.Assign)) |op| {
+            const rhs = try parse_term(self);
+            const end = self.prevous();
+            const node = AST.ExprNode.create_assign(self.allocator, op, id, rhs);
+            const expr = AST.Expr.create(self.allocator, start, end, node);
+            return expr;
+        }
+        self.current -= 1;
     }
     return parse_term(self);
 }
