@@ -71,9 +71,9 @@ pub const Lexer = struct {
             '^' => self.add_token(.Hat),
             '/' => {
                 if (self.match('/')) {
-                    while (self.peek() != '\n') {
-                        _ = self.advance();
-                    }
+                    while (self.advance() != '\n') {}
+                } else if (self.match('*')) {
+                    while (!(self.advance() == '*' and self.advance() == '/')) {}
                 } else {
                     self.add_token(.FSlash);
                 }

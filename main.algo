@@ -1,16 +1,27 @@
 algorithme test
 
+/*
+ * More than one line comment
+ */
+
 var
-  a: entier
-  b: entier
+  a, b: entier
+  tmp: entier // due to some low level details of the language implementation this variables isn't temporary
 
 debut
+  // Variable initialization
   a <- 10
   b <- 90
 
   dbg a
   dbg b
 
-  b <- b + a
+  // Swaping two variables
+  tmp <- a
+  a   <- b
+  b   <- tmp
+
+  // debug
+  dbg a
   dbg b
 fin
