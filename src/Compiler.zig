@@ -7,7 +7,7 @@ const fmt = std.fmt;
 const Token = root.Token;
 const TokenKind = root.TokenKind;
 const AST = root.AST;
-const Context = root.Context;
+const ContextIR = root.ContextIR;
 const Chunk = root.Chunk;
 const OpCode = root.OpCode;
 const OpReg = root.OpReg;
@@ -16,14 +16,12 @@ pub const Compiler = struct {
     const Self = Compiler;
 
     allocator: mem.Allocator,
-    ctx: *const Context,
-    program: *const AST.Program,
+    ctx: *ContextIR,
 
-    pub fn init(allocator: mem.Allocator, ctx: *Context, program: *AST.Program) Self {
+    pub fn init(allocator: mem.Allocator, ctx: *ContextIR) Self {
         return .{
             .allocator = allocator,
             .ctx = ctx,
-            .program = program,
         };
     }
 
@@ -32,68 +30,61 @@ pub const Compiler = struct {
 
         self.set_up(&chunk);
 
-        self.compile_program_block(self.program.program.items, &chunk);
+        self.compile_instruction(&chunk, &self.ctx.program);
+        var current = self.ctx.program.next;
+        while (current) |inst| {
+            self.compile_instruction(&chunk, inst);
+            current = inst.next;
+        }
 
         chunk.write_op_code(.OpHalt);
 
         return chunk;
     }
 
-    fn compile_program_block(self: *Self, block: []*AST.Stmt, chunk: *Chunk) void {
-        for (block) |stmt| {
-            self.compile_statment(stmt, chunk);
-        }
-    }
-
-    fn compile_statment(self: *Self, stmt: *AST.Stmt, chunk: *Chunk) void {
-        switch (stmt.node.*) {
-            .Expr => |expr| self.compile_expr(expr, chunk, .RegA),
-            .Dbg => |expr| {
-                self.compile_expr(expr, chunk, .RegA);
+    fn compile_instruction(self: *Self, chunk: *Chunk, instruction: *const ContextIR.Instruction) void {
+        switch (instruction.op) {
+            .Add, .Sub, .Mul, .Div, .Pow => {
+                if (instruction.operand1) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+                if (instruction.operand2) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+                chunk.write_op_code(instKind_to_opCode(instruction.op));
+            },
+            .Assign => {
+                if (instruction.operand2) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+                chunk.write_op_code(.OpStore);
+                const alignment = self.ctx.get_variable(instruction.operand1.?.Variable) orelse unreachable;
+                chunk.write_long(alignment.alignment);
+            },
+            .Dbg => {
+                if (instruction.operand1) |op| {
+                    self.compile_constants(chunk, &op);
+                }
                 chunk.write_op_code(.OpDbg);
             },
         }
     }
 
-    fn compile_expr(self: *Self, expr: *AST.Expr, chunk: *Chunk, reg: OpReg) void {
-        switch (expr.node.*) {
-            .Grouping => |node| self.compile_expr(node, chunk, .RegA),
-            .Primary => |tok| {
-                switch (tok.kind) {
-                    TokenKind.Identifier => {
-                        const symbol = self.ctx.get_variable(tok.lexem) orelse unreachable;
-                        chunk.write_op_code(.OpLoad);
-                        chunk.write_long(symbol.index);
-                    },
-                    TokenKind.IntLit => {
-                        const num = fmt.parseInt(i64, tok.lexem, 10) catch @panic("Solve your things");
-                        chunk.write_op_code(.OpMov);
-                        chunk.write_long(@as(u64, @bitCast(num)));
-                    },
-                    TokenKind.FloatLit => {
-                        const num = fmt.parseFloat(f64, tok.lexem) catch @panic("Solve your things");
-                        chunk.write_op_code(.OpMov);
-                        chunk.write_long(@as(u64, @bitCast(num)));
-                    },
-                    else => unreachable,
-                }
-                chunk.write_op_reg(reg);
+    fn compile_constants(self: *Self, chunk: *Chunk, constant: *const ContextIR.Constant) void {
+        switch (constant.*) {
+            .Int => |value| {
+                chunk.write_op_code(.OpPush);
+                chunk.write_long(@as(u64, @bitCast(value)));
             },
-            .Binary => |node| {
-                self.compile_expr(node.lhs, chunk, .RegA);
-                self.compile_expr(node.rhs, chunk, .RegB);
-                chunk.write_op_code(token_to_opCode(node.op));
-                chunk.write_op_reg(.RegA);
-                chunk.write_op_reg(.RegB);
+            .Float => |value| {
+                chunk.write_op_code(.OpPush);
+                chunk.write_long(@as(u64, @bitCast(value)));
             },
-            .Assign => |node| {
-                const symbol = self.ctx.get_variable(node.lhs.lexem) orelse unreachable;
-                self.compile_expr(node.rhs, chunk, .RegA);
-                chunk.write_op_code(.OpSet);
-                chunk.write_long(symbol.index);
-                chunk.write_op_reg(.RegA);
+            .Variable => |id| {
+                const alignment = self.ctx.get_variable(id) orelse unreachable;
+                chunk.write_op_code(.OpLoad);
+                chunk.write_long(alignment.alignment);
             },
-            else => unreachable,
         }
     }
 
@@ -103,13 +94,13 @@ pub const Compiler = struct {
         chunk.write_long(size);
     }
 
-    fn token_to_opCode(token: *const Token) OpCode {
-        return switch (token.kind) {
-            .Plus => OpCode.OpAdd,
-            .Minus => OpCode.OpSubtract,
-            .Star => OpCode.OpMultiply,
-            .FSlash => OpCode.OpDivide,
-            .Hat => OpCode.OpPower,
+    fn instKind_to_opCode(kind: ContextIR.InstructionKind) OpCode {
+        return switch (kind) {
+            .Add => OpCode.OpAdd,
+            .Sub => OpCode.OpSubtract,
+            .Mul => OpCode.OpMultiply,
+            .Div => OpCode.OpDivide,
+            .Pow => OpCode.OpPower,
             else => unreachable,
         };
     }

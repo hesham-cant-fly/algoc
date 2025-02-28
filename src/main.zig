@@ -13,7 +13,6 @@ var gpa = heap.GeneralPurposeAllocator(.{}){};
 pub fn main() !void {
     std.debug.print("Started\n", .{});
 
-    defer common.deinit();
     const alloc = gpa.allocator();
     defer {
         const status = gpa.deinit();
@@ -38,11 +37,13 @@ pub fn main() !void {
     var analyser = root.Analyser.init(alloc);
     defer analyser.deinit();
     var ctx = try analyser.analyse(&ast_res);
-    // analyser.dbg();
+    // defer ctx.deinit();
 
-    var compiler = root.Compiler.init(alloc, &ctx, &ast_res);
+    var compiler = root.Compiler.init(alloc, &ctx);
     var chunk = compiler.compile();
     defer chunk.deinit();
+
+    chunk.dbg();
 
     var vm = root.Vm.init(alloc, &chunk);
     defer vm.deinit();

@@ -21,11 +21,12 @@ pub const Type = LanguageType.Type;
 pub const Primitive = LanguageType.Primitive;
 
 pub const VarSymbol = AnalyserMod.VarSymbol;
-pub const Context = AnalyserMod.Context;
+pub const ContextIR = AnalyserMod.ContextIR;
 pub const Analyser = AnalyserMod.Analyser;
 
 pub const Compiler = CompilerMod.Compiler;
 
+pub const Op = VM.Op;
 pub const OpCode = VM.OpCode;
 pub const OpReg = VM.OpReg;
 pub const Chunk = VM.Chunk;

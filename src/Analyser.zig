@@ -4,7 +4,9 @@ const root = @import("root").root;
 const Type = root.Type;
 const Token = root.Token;
 const AST = root.AST;
+const OpReg = root.OpReg;
 
+const fmt = std.fmt;
 const mem = std.mem;
 const debug = std.debug;
 const StringHashMap = std.StringHashMap;
@@ -12,7 +14,7 @@ const StringHashMap = std.StringHashMap;
 pub const VarSymbol = struct {
     const Self = VarSymbol;
 
-    index: usize = 0,
+    alignment: usize = 0,
     identifier: *const Token,
     tp: Type,
 
@@ -26,24 +28,83 @@ pub const VarSymbol = struct {
     }
 };
 
-pub const ExprTypeInfo = Type;
+pub const ExprTypeInfo = struct {
+    tp: Type,
+    symbol: ?VarSymbol = null,
+    constant: ?ContextIR.Constant = null,
+};
 
-pub const Context = struct {
-    const Self = Context;
+pub const ContextIR = struct {
+    const Self = ContextIR;
     const Error = error{SymbolAlreadyExists};
 
+    pub const InstructionKind = enum {
+        Add, // +
+        Sub, // -
+        Mul, // *
+        Div, // /
+        Pow, // ^
+        Assign,
+        Dbg,
+
+        pub fn from_token_kind(kind: root.TokenKind) InstructionKind {
+            return switch (kind) {
+                .Plus => InstructionKind.Add,
+                .Minus => InstructionKind.Sub,
+                .Star => InstructionKind.Mul,
+                .FSlash => InstructionKind.Div,
+                .Hat => InstructionKind.Pow,
+                else => unreachable,
+            };
+        }
+    };
+
+    pub const Constant = union(enum) {
+        Int: i64,
+        Float: f64,
+        Variable: []const u8,
+    };
+
+    pub const Instruction = struct {
+        op: InstructionKind = undefined,
+        operand1: ?Constant = null,
+        operand2: ?Constant = null,
+        next: ?*Instruction = null,
+        result_type: ?Type = null,
+
+        pub fn create(allocator: mem.Allocator) *Instruction {
+            const result = allocator.create(Instruction) catch @panic("Out Of Memory.");
+            result.* = .{ .next = null };
+            return result;
+        }
+
+        pub fn deinit(self: *Instruction, allocator: mem.Allocator) void {
+            var current: ?*Instruction = self.next;
+            while (current) |node| {
+                const next = node.next; // Capture next before destruction
+                allocator.destroy(node);
+                current = next;
+            }
+        }
+    };
+
     algorithm: []const u8 = "",
+    allocator: mem.Allocator,
     variables: StringHashMap(VarSymbol),
     last_index: usize = 0,
+    program: Instruction = undefined,
+    last_instruction: ?*Instruction = null,
 
     pub fn init(allocator: mem.Allocator) Self {
         return .{
+            .allocator = allocator,
             .variables = StringHashMap(VarSymbol).init(allocator),
         };
     }
 
     pub fn deinit(self: *Self) void {
         self.variables.deinit();
+        self.program.deinit(self.allocator);
     }
 
     pub fn dbg(self: *Self) void {
@@ -60,7 +121,7 @@ pub const Context = struct {
         if (self.variables.contains(token.lexem)) {
             return Error.SymbolAlreadyExists;
         }
-        const symbol = VarSymbol{ .identifier = token, .tp = tp, .index = self.last_index };
+        const symbol = VarSymbol{ .identifier = token, .tp = tp, .alignment = self.last_index };
         self.last_index += symbol.get_size();
         self.variables.put(
             token.lexem,
@@ -82,6 +143,18 @@ pub const Context = struct {
 
         return size;
     }
+
+    pub fn add_instruction(self: *Self, instruction: *Instruction) void {
+        if (self.last_instruction == null) {
+            self.program = instruction.*;
+            self.last_instruction = &self.program;
+            self.allocator.destroy(instruction);
+            return;
+        }
+        self.last_instruction.?.next = instruction;
+        self.last_instruction = self.last_instruction.?.next;
+        self.last_instruction.?.next = null;
+    }
 };
 
 pub const Analyser = struct {
@@ -92,12 +165,12 @@ pub const Analyser = struct {
         MismatchType,
     };
 
-    ctx: Context,
+    ctx: ContextIR,
     program: *AST.Program = undefined,
 
     pub fn init(allocator: mem.Allocator) Self {
         return .{
-            .ctx = Context.init(allocator),
+            .ctx = ContextIR.init(allocator),
         };
     }
 
@@ -109,7 +182,7 @@ pub const Analyser = struct {
         self.ctx.dbg();
     }
 
-    pub fn analyse(self: *Self, program: *AST.Program) Error!Context {
+    pub fn analyse(self: *Self, program: *AST.Program) Error!ContextIR {
         self.program = program;
 
         self.ctx.algorithm = self.program.algorithme_id.lexem;
@@ -142,7 +215,13 @@ pub const Analyser = struct {
     }
 
     fn analyse_dbg(self: *Self, expr: *AST.Expr) Error!void {
-        _ = try self.analyse_expression(expr);
+        const tp = try self.analyse_expression(expr);
+
+        const instruction = ContextIR.Instruction.create(self.ctx.allocator);
+        instruction.op = .Dbg;
+        instruction.operand1 = tp.constant;
+        instruction.result_type = tp.tp;
+        self.ctx.add_instruction(instruction);
     }
 
     fn analyse_expression(self: *Self, expr: *AST.Expr) Error!ExprTypeInfo {
@@ -160,34 +239,68 @@ pub const Analyser = struct {
     }
 
     fn analyse_primary(self: *Self, tok: *const Token) Error!ExprTypeInfo {
-        return switch (tok.kind) {
-            .IntLit => Type{ .Primitive = .Int },
-            .FloatLit => Type{ .Primitive = .Float },
+        const result: ExprTypeInfo = switch (tok.kind) {
+            .IntLit => ExprTypeInfo{
+                .tp = Type{ .Primitive = .Int },
+                .constant = ContextIR.Constant{
+                    .Int = fmt.parseInt(i64, tok.lexem, 10) catch @panic("Fix your thing."),
+                },
+            },
+            .FloatLit => ExprTypeInfo{
+                .tp = Type{ .Primitive = .Float },
+                .constant = ContextIR.Constant{
+                    .Float = fmt.parseFloat(f64, tok.lexem) catch @panic("Fix your thing."),
+                },
+            },
             .Identifier => res: {
                 if (self.ctx.get_variable(tok.lexem)) |symbol| {
-                    break :res symbol.tp;
+                    break :res ExprTypeInfo{
+                        .tp = symbol.tp,
+                        .symbol = symbol,
+                        .constant = ContextIR.Constant{
+                            .Variable = tok.lexem,
+                        },
+                    };
                 } else {
                     return Error.UndeclaredVariable;
                 }
             },
             else => unreachable,
         };
+        return result;
     }
 
     fn analyse_assignment(self: *Self, node: *AST.ExprNodeAssign) Error!ExprTypeInfo {
         const symbol = self.ctx.get_variable(node.lhs.lexem) orelse return Error.UndeclaredVariable;
         const rhs_tp = try self.analyse_expression(node.rhs);
-        const can_assign = symbol.tp.can_assign(&rhs_tp);
+        const can_assign = symbol.tp.can_assign(&rhs_tp.tp);
         if (!can_assign) {
             return Error.MismatchType;
         }
-        return symbol.tp;
+
+        const instruction = ContextIR.Instruction.create(self.ctx.allocator);
+        instruction.op = .Assign;
+        instruction.operand1 = .{ .Variable = symbol.identifier.lexem };
+        instruction.operand2 = rhs_tp.constant;
+        instruction.result_type = symbol.tp;
+        self.ctx.add_instruction(instruction);
+
+        return rhs_tp;
     }
 
     fn analyse_binary_expression(self: *Self, node: *AST.ExprNodeBinary) Error!ExprTypeInfo {
         // TODO: Do a better analysing
-        _ = try self.analyse_expression(node.lhs);
-        return self.analyse_expression(node.rhs);
+        const lhs = try self.analyse_expression(node.lhs);
+        const rhs = try self.analyse_expression(node.rhs);
+
+        const instruction = ContextIR.Instruction.create(self.ctx.allocator);
+        instruction.op = ContextIR.InstructionKind.from_token_kind(node.op.kind);
+        instruction.operand1 = lhs.constant;
+        instruction.operand2 = rhs.constant;
+        instruction.result_type = rhs.tp; // TODO: The resulted type of a binary expression should be specified in here
+        self.ctx.add_instruction(instruction);
+
+        return ExprTypeInfo{ .constant = null, .symbol = null, .tp = rhs.tp };
     }
 };
 
