@@ -212,6 +212,9 @@ pub const Analyser = struct {
             switch (node.node.*) {
                 .Expr => |expr| _ = try self.analyse_expression(expr),
                 .Dbg => |expr| try self.analyse_dbg(expr),
+                .If => {
+                    @panic("Unimplemented");
+                },
             }
         }
     }
@@ -295,7 +298,7 @@ pub const Analyser = struct {
         const lhs = try self.analyse_expression(node.lhs);
         const rhs = try self.analyse_expression(node.rhs);
 
-        const res_tp = self.binary_type(node.op, lhs, rhs);
+        const res_tp = try self.binary_type(node.op, lhs.tp, rhs.tp);
 
         const instruction = ContextIR.Instruction.create(self.ctx.allocator);
         instruction.op = ContextIR.InstructionKind.from_token_kind(node.op.kind);
@@ -311,9 +314,10 @@ pub const Analyser = struct {
         };
     }
 
-    fn binary_type(self: *Self, op: Token, lhs: Type, rhs: Type) Error!Type {
+    fn binary_type(self: *Self, op: *const Token, lhs: Type, rhs: Type) Error!Type {
         return switch (op.kind) {
             .Plus => try self.type_addition(lhs, rhs),
+            else => @panic("unimplemented"),
         };
     }
 
@@ -321,6 +325,7 @@ pub const Analyser = struct {
         _ = self;
         _ = lhs;
         _ = rhs;
+        @panic("unimplemented");
     }
 };
 

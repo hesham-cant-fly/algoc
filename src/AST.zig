@@ -12,6 +12,24 @@ const ArrayList = std.ArrayList;
 
 const indent_buf = "                                                                                                                                                                                                                                                                       ";
 
+pub const Block = std.ArrayListUnmanaged(*Stmt);
+
+pub fn free_block(block: *Block, allocator: mem.Allocator) void {
+    for (block.items) |stmt| {
+        stmt.free(allocator);
+    }
+    block.deinit(allocator);
+}
+
+pub fn dbg_block(block: *Block, ind: usize) void {
+    const indent = get_indent(ind);
+    debug.print("{s}Block:\n", .{indent});
+    for (block.items, 0..) |stmt, i| {
+        debug.print("{s}  {d}:\n", .{ indent, i });
+        stmt.dbg(ind + 4);
+    }
+}
+
 pub const Program = struct {
     const Self = Program;
 
@@ -21,17 +39,17 @@ pub const Program = struct {
     // types: ??,
     variables: ArrayList(VarDec),
     // functions: ??,
-    program: ArrayList(*Stmt),
+    program: Block,
 
     pub fn init(allocator: mem.Allocator) Self {
         return .{
             .allocator = allocator,
             .variables = ArrayList(VarDec).init(allocator),
-            .program = ArrayList(*Stmt).init(allocator),
+            .program = Block.initCapacity(allocator, 0) catch @panic("Out Of Memory."),
         };
     }
 
-    pub fn deinit(self: *const Self) void {
+    pub fn deinit(self: *Self) void {
         for (self.variables.items) |item| {
             item.deinit();
         }
@@ -39,7 +57,7 @@ pub const Program = struct {
             item.free(self.allocator);
         }
         self.variables.deinit();
-        self.program.deinit();
+        self.program.deinit(self.allocator);
     }
 
     pub fn set_algo_id(self: *Self, id: *const Token) void {
@@ -157,6 +175,7 @@ pub const StmtNode = union(enum) {
 
     Expr: *Expr,
     Dbg: *Expr,
+    If: IfStmtNode,
 
     pub fn create(allocator: mem.Allocator) *Self {
         return allocator.create(Self) catch @panic("Ouf Of Memory.");
@@ -174,25 +193,98 @@ pub const StmtNode = union(enum) {
         return node;
     }
 
+    pub fn create_if(allocator: mem.Allocator, condition: *Expr, then: Block, else_if: ?ElseIfNode, _else: ?Block) *Self {
+        const node = create(allocator);
+        node.* = StmtNode{
+            .If = .{
+                .condition = condition,
+                .then = then,
+                .else_if = else_if,
+                ._else = _else,
+            },
+        };
+        return node;
+    }
+
     pub fn free(self: *Self, allocator: mem.Allocator) void {
         switch (self.*) {
             .Expr => |expr| expr.free(allocator),
             .Dbg => |expr| expr.free(allocator),
+            .If => |*node| {
+                node.condition.free(allocator);
+                for (node.then.items) |stmt| {
+                    stmt.free(allocator);
+                }
+                if (node.else_if) |*else_if| {
+                    var current: ?*ElseIfNode = else_if;
+                    while (current) |else_if_node| {
+                        current = else_if_node.next;
+                        else_if_node.condition.free(allocator);
+                        free_block(&else_if_node.body, allocator);
+                        allocator.destroy(else_if_node);
+                    }
+                }
+                if (node._else) |*else_node| {
+                    free_block(else_node, allocator);
+                }
+            },
         }
         allocator.destroy(self);
     }
 
-    pub fn dbg(self: *const Self, ind: usize) void {
+    pub fn dbg(self: *Self, ind: usize) void {
+        const indent = get_indent(ind);
         switch (self.*) {
             .Expr => |expr| {
                 expr.dbg(ind + 2);
             },
             .Dbg => |expr| {
-                debug.print("dbg:\n", .{});
+                debug.print("{s}dbg:\n", .{indent});
                 expr.dbg(ind + 2);
+            },
+            .If => |*node| {
+                debug.print("{s}If:\n", .{indent});
+                debug.print("{s}  condition:\n", .{indent});
+                node.condition.dbg(ind + 2);
+
+                debug.print("{s}  then:\n", .{indent});
+                dbg_block(&node.then, ind + 4);
+
+                if (node.else_if) |*else_if| {
+                    else_if.dbg(ind + 2);
+                }
+                if (node._else) |*_else| {
+                    debug.print("{s}  else:\n", .{indent});
+                    dbg_block(_else, ind + 2);
+                }
             },
         }
     }
+};
+
+pub const ElseIfNode = struct {
+    condition: *Expr,
+    body: Block,
+    next: ?*ElseIfNode = null,
+
+    pub fn dbg(self: *ElseIfNode, ind: usize) void {
+        const indent = get_indent(ind);
+        var current: ?*ElseIfNode = self;
+        var i: usize = 0;
+        while (current) |node| : (i += 1) {
+            const next = node.next;
+            debug.print("{s}else_if({d}):\n", .{ indent, i });
+            dbg_block(&node.body, ind + 2);
+            current = next;
+        }
+    }
+};
+
+pub const IfStmtNode = struct {
+    condition: *Expr,
+    then: Block,
+    else_if: ?ElseIfNode,
+    _else: ?Block,
 };
 
 pub const Type = struct {

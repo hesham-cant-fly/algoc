@@ -33,6 +33,12 @@ pub const TokenKind = enum(i8) {
     Begin,
     End,
     Dbg,
+
+    If, // 'si'
+    Else, // 'sinon'
+    ElseIf, // 'sinonsi'
+    Then, // 'alors'
+    EndIf, // 'finsi'
 };
 
 pub const Token = struct {

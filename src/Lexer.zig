@@ -22,6 +22,12 @@ const keywords = std.StaticStringMap(TokenKind).initComptime(.{
     .{ "fin", TokenKind.End },
 
     .{ "dbg", TokenKind.Dbg },
+
+    .{ "si", TokenKind.If },
+    .{ "sinonsi", TokenKind.ElseIf },
+    .{ "sinon", TokenKind.Else },
+    .{ "alors", TokenKind.Then },
+    .{ "finsi", TokenKind.EndIf },
 });
 
 pub const LexerError = error{};

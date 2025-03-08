@@ -1,22 +1,31 @@
 algorithme test
 
-var
-  a, b: entier
-  tmp: entier
+// var
+//   a, b: entier
+//   tmp: entier
 
 debut
-  a <- 10
-  b <- 90
+  si 1 + 2 * 3 / 9 ^ (2 + 10) alors
+    a <- 10
+  sinonsi 1 + 1 alors
+    dbg 10
+  sinonsi 1 + 1 alors
+    dbg 10
+  sinonsi 1 + 1 alors
+    dbg 10
+  sinon
+    b <- 90
+  finsi
 
-  dbg a
-  dbg b
+  // dbg a
+  // dbg b
 
-  tmp <- a
-  a   <- b
-  b   <- tmp
+  // tmp <- a
+  // a   <- b
+  // b   <- tmp
 
-  dbg a
-  dbg b
+  // dbg a
+  // dbg b
 
-  dbg (a ^ 2)
+  // dbg (a ^ 2)
 fin

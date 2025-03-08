@@ -3,7 +3,6 @@
 ** Introduction
 If you're Moroccan and have started learning any IT-related topic at university or OFPPT, you've probably come across a programming language called =Algo=. This language is primarily available on Android, which can be quite limiting. As a student myself, I decided to create a cross-platform interpreter for it to make it more accessible!
 
-
 ** Installation
 Currently, the only way to try Algo is by building it yourself. To get started, install the Zig compiler and run the command =zig build run=. Once you've done that, you're all set!
 

@@ -22,6 +22,7 @@ pub const Parser = struct {
 
     pub const parse_expression = expressions.parse_expression;
     pub const parse_program = statement.parse_program;
+    pub const parse_statement = statement.parse_statement;
 
     pub fn init(allocator: mem.Allocator, content: []const u8, tokens: TokenList) Self {
         return Parser{

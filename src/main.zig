@@ -33,6 +33,7 @@ pub fn main() !void {
     var parser = Parser.Parser.init(alloc, text, tokens);
     defer parser.deinit();
     var ast_res = try parser.parse();
+    ast_res.dbg();
 
     var analyser = root.Analyser.init(alloc);
     defer analyser.deinit();

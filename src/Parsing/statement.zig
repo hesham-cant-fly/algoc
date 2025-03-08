@@ -61,19 +61,13 @@ pub fn parse_type(self: *Self) ParserError!*AST.Type {
     return tp;
 }
 
-pub fn parse_program_block(self: *Self, out: *std.ArrayList(*AST.Stmt)) ParserError!void {
+pub fn parse_program_block(self: *Self, out: *AST.Block) ParserError!void {
     if (self.match(TokenKind.Begin) == null)
         return ParserError.UnexpectedToken;
 
     while (true) {
-        const stmt = switch (self.peek().kind) {
-            TokenKind.Dbg => res: {
-                _ = self.advance();
-                break :res try parse_dbg(self);
-            },
-            else => try parse_expr_stmt(self),
-        };
-        out.append(stmt) catch @panic("Out Of Memory.");
+        const stmt = try parse_statement(self);
+        out.append(self.allocator, stmt) catch @panic("Out Of Memory.");
         if (self.match(TokenKind.EOF)) |_| {
             return ParserError.UnexpectedToken;
         }
@@ -81,6 +75,17 @@ pub fn parse_program_block(self: *Self, out: *std.ArrayList(*AST.Stmt)) ParserEr
             return;
         }
     }
+}
+
+pub fn parse_statement(self: *Self) ParserError!*AST.Stmt {
+    return switch (self.advance().kind) {
+        TokenKind.Dbg => try parse_dbg(self),
+        TokenKind.If => try parse_if(self),
+        else => res: {
+            self.current -= 1;
+            break :res try parse_expr_stmt(self);
+        },
+    };
 }
 
 pub fn parse_expr_stmt(self: *Self) ParserError!*AST.Stmt {
@@ -99,4 +104,56 @@ pub fn parse_dbg(self: *Self) ParserError!*AST.Stmt {
     const node = AST.StmtNode.create_dbg(self.allocator, expr);
     const stmt = AST.Stmt.create(self.allocator, start, end, node);
     return stmt;
+}
+
+pub fn parse_if(self: *Self) ParserError!*AST.Stmt {
+    const start = self.prevous();
+    const condition = try self.parse_expression();
+    _ = try self.consume(.Then, "Expected 'alors' after si condition");
+    var then_cluase = AST.Block.initCapacity(self.allocator, 0) catch @panic("Out Of Memory.");
+    while ((!self.is_at_end()) and (self.peek().kind != .EndIf) and (self.peek().kind != .Else) and (self.peek().kind != .ElseIf)) {
+        const stmt = try self.parse_statement();
+        then_cluase.append(self.allocator, stmt) catch @panic("Ouf Of Memory.");
+    }
+
+    var else_if: ?AST.ElseIfNode = null;
+    if (self.match(TokenKind.ElseIf)) |_| {
+        else_if = AST.ElseIfNode{
+            .condition = undefined,
+            .body = AST.Block.initCapacity(self.allocator, 1) catch @panic("Out Of Memory."),
+            .next = null,
+        };
+        var current = &else_if.?;
+        while (true) {
+            current.condition = try self.parse_expression();
+            _ = try self.consume(.Then, "Expected `alors` after the condition.");
+            while (!(self.check(.Else) or self.check(.EndIf) or self.check(.ElseIf))) {
+                current.body.append(self.allocator, try self.parse_statement()) catch @panic("Out Of Memory.");
+            }
+            if (self.match(TokenKind.ElseIf) == null) {
+                break;
+            } else {
+                current.next = self.allocator.create(AST.ElseIfNode) catch @panic("Out Of Memory.");
+                current.next.?.* = AST.ElseIfNode{
+                    .condition = undefined,
+                    .body = AST.Block.initCapacity(self.allocator, 1) catch @panic("Out Of Memory."),
+                    .next = null,
+                };
+                current = current.next.?;
+            }
+        }
+    }
+    var else_: ?AST.Block = null;
+    if (self.match(TokenKind.Else)) |_| {
+        else_ = AST.Block.initCapacity(self.allocator, 1) catch @panic("Out Of Memory.");
+        while (!self.check(TokenKind.EndIf)) {
+            else_.?.append(self.allocator, try self.parse_statement()) catch @panic("Out Of Memory.");
+        }
+    }
+    _ = try self.consume(.EndIf, "Expected 'finsi' as closing of a if statement.");
+
+    const end = self.prevous();
+    const node = AST.StmtNode.create_if(self.allocator, condition, then_cluase, else_if, else_);
+    const res = AST.Stmt.create(self.allocator, start, end, node);
+    return res;
 }
