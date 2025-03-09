@@ -9,9 +9,17 @@ const TokenKind = TokenMod.TokenKind;
 const TokenList = TokenMod.TokenList;
 
 const keywords = std.StaticStringMap(TokenKind).initComptime(.{
+    .{ "mod", TokenKind.Mod },
+    .{ "non", TokenKind.Not },
+    .{ "ou", TokenKind.Or },
+    .{ "et", TokenKind.And },
+
     // Data Types
     .{ "entier", TokenKind.Int },
     .{ "réel", TokenKind.Float },
+    .{ "reel", TokenKind.Float },
+    .{ "booléen", TokenKind.Bool },
+    .{ "booleen", TokenKind.Bool },
 
     .{ "algorithme", TokenKind.Algorithm },
     .{ "var", TokenKind.Var },
@@ -22,6 +30,9 @@ const keywords = std.StaticStringMap(TokenKind).initComptime(.{
     .{ "fin", TokenKind.End },
 
     .{ "dbg", TokenKind.Dbg },
+
+    .{ "vrai", TokenKind.True },
+    .{ "faux", TokenKind.False },
 
     .{ "si", TokenKind.If },
     .{ "sinonsi", TokenKind.ElseIf },
@@ -72,9 +83,10 @@ pub const Lexer = struct {
         const ch: u21 = self.advance();
         switch (ch) {
             '+' => self.add_token(.Plus),
-            '-' => self.add_token(.Minus),
+            '-' => if (self.match('>')) self.add_token(.Assign) else self.add_token(.Minus),
             '*' => self.add_token(.Star),
             '^' => self.add_token(.Hat),
+            '%' => self.add_token(.Mod),
             '/' => {
                 if (self.match('/')) {
                     while (self.advance() != '\n') {}
@@ -84,15 +96,22 @@ pub const Lexer = struct {
                     self.add_token(.FSlash);
                 }
             },
+            '=' => self.add_token(.Eq),
+            '!' => if (self.match('=')) self.add_token(.NotEq) else self.add_token(.Not),
+            '>' => if (self.match('=')) self.add_token(.GreaterEq) else self.add_token(.Greater),
             '<' => {
                 if (self.match('-')) {
                     self.add_token(.Assign);
+                } else if (self.match('>')) {
+                    self.add_token(.NotEq);
+                } else if (self.match('=')) {
+                    self.add_token(.LessEq);
                 } else {
-                    @panic("Unimplemented.");
+                    self.add_token(.Less);
                 }
             },
 
-            ':' => self.add_token(.Colon),
+            ':' => if (self.match('=')) self.add_token(.Assign) else self.add_token(.Colon),
             ',' => self.add_token(.Comma),
 
             '(' => self.add_token(.OpenParen),

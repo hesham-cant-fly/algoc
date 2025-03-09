@@ -1,4 +1,8 @@
 const std = @import("std");
+const root = @import("root").root;
+
+const Token = root.Token;
+const TokenKind = root.TokenKind;
 
 const debug = std.debug;
 
@@ -7,11 +11,13 @@ pub const Primitive = enum(u8) {
 
     Int,
     Float,
+    Bool,
 
     pub fn get_size(self: Self) usize {
         return switch (self) {
             .Int => 8,
             .Float => 8,
+            .Bool => 1,
         };
     }
 
@@ -21,15 +27,40 @@ pub const Primitive = enum(u8) {
         }
         const other_primitive = other.Primitive;
         return switch (self) {
-            .Int => other_primitive == .Int,
-            .Float => other_primitive == .Int or other_primitive == .Float,
+            .Int, .Float => other_primitive == .Int or other_primitive == .Float,
+            .Bool => other_primitive == .Bool,
         };
+    }
+
+    pub fn is(self: Self, other: Self) bool {
+        return self == other;
     }
 
     pub fn dbg(self: Self) void {
         switch (self) {
             .Int => debug.print("Int", .{}),
             .Float => debug.print("Float", .{}),
+        }
+    }
+
+    pub fn binary(self: *const Self, other: *const Self, op: *const Token) ?Primitive {
+        switch (op.kind) {
+            TokenKind.Plus, TokenKind.Minus, TokenKind.Star, TokenKind.FSlash, TokenKind.Hat => {
+                if (self.* == .Int and other.* == .Int) return .Int;
+
+                if ((self.* == .Float or other.* == .Int) and (self.* == .Int or other.* == .Float))
+                    return Primitive.Float;
+
+                return null;
+            },
+            TokenKind.Or, TokenKind.And => {
+                if (self.* == .Bool and other.* == .Bool) return Primitive.Bool;
+                return null;
+            },
+            TokenKind.Eq, TokenKind.NotEq, TokenKind.Less, TokenKind.Greater, TokenKind.LessEq, TokenKind.GreaterEq => {
+                return Primitive.Bool;
+            },
+            else => return null,
         }
     }
 };
@@ -55,5 +86,30 @@ pub const Type = union(enum) {
         return switch (self.*) {
             .Primitive => |tp| tp.can_assign(other),
         };
+    }
+
+    pub fn get_primitive(self: *const Self) ?Primitive {
+        return switch (self.*) {
+            .Primitive => |pri| pri,
+        };
+    }
+
+    pub fn binary(self: *const Self, other: *const Type, op: *const Token) ?Type {
+        switch (self.*) {
+            .Primitive => |self_pri| {
+                const other_pri = other.get_primitive() orelse return null;
+                const res_prim = self_pri.binary(&other_pri, op) orelse return null;
+                return Type{ .Primitive = res_prim };
+            },
+        }
+    }
+
+    pub fn is(self: Self, other: Self) bool {
+        switch (self) {
+            .Primitive => |prim| {
+                if (other != .Primitive) return false;
+                return other.Primitive.is(prim);
+            },
+        }
     }
 };

@@ -31,3 +31,7 @@ pub const OpCode = VM.OpCode;
 pub const OpReg = VM.OpReg;
 pub const Chunk = VM.Chunk;
 pub const Vm = VM.VM;
+
+pub fn assert(b: bool) void {
+    if (!b) @panic("assertion failed");
+}

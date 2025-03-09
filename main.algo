@@ -1,31 +1,34 @@
 algorithme test
 
-// var
-//   a, b: entier
-//   tmp: entier
+var
+  a, b: entier // int type
+  c: réel // float type
+  tmp: entier
+  bo: booléen // Here
 
 debut
-  si 1 + 2 * 3 / 9 ^ (2 + 10) alors
-    a <- 10
-  sinonsi 1 + 1 alors
-    dbg 10
-  sinonsi 1 + 1 alors
-    dbg 10
-  sinonsi 1 + 1 alors
-    dbg 10
-  sinon
-    b <- 90
-  finsi
+  // Those are all the same
+  a <- 10
+  dbg a
 
-  // dbg a
-  // dbg b
+  b := 20 + a
+  dbg b
 
-  // tmp <- a
-  // a   <- b
-  // b   <- tmp
+  tmp = 5 - b
+  dbg tmp
 
-  // dbg a
-  // dbg b
+  c <- 10.1
+  dbg c
 
-  // dbg (a ^ 2)
+  a <- c /* implicitly converting a float type value to int */
+  dbg a
+
+  c <- a /* implicitly converting an int type value to float */
+  dbg c
+
+  // vrai => true
+  // faux => false
+
+  bo := vrai // Boolean
+  dbg bo
 fin

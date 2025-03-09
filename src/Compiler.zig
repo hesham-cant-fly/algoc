@@ -11,6 +11,8 @@ const ContextIR = root.ContextIR;
 const Chunk = root.Chunk;
 const OpCode = root.OpCode;
 const OpReg = root.OpReg;
+const Primitive = root.Primitive;
+const Type = root.Type;
 
 pub const Compiler = struct {
     const Self = Compiler;
@@ -42,48 +44,35 @@ pub const Compiler = struct {
         return chunk;
     }
 
-    fn compile_instruction(self: *Self, chunk: *Chunk, instruction: *const ContextIR.Instruction) void {
-        switch (instruction.op) {
-            .Add, .Sub, .Mul, .Div, .Pow => {
-                if (instruction.operand1) |op| {
-                    self.compile_constants(chunk, &op);
-                }
-                if (instruction.operand2) |op| {
-                    self.compile_constants(chunk, &op);
-                }
-                chunk.write_op_code(instKind_to_opCode(instruction.op));
-            },
-            .Assign => {
-                if (instruction.operand2) |op| {
-                    self.compile_constants(chunk, &op);
-                }
-                chunk.write_op_code(.OpStore);
-                const alignment = self.ctx.get_variable(instruction.operand1.?.Variable) orelse unreachable;
-                chunk.write_long(alignment.alignment);
-            },
-            .Dbg => {
-                if (instruction.operand1) |op| {
-                    self.compile_constants(chunk, &op);
-                }
-                chunk.write_op_code(.OpDbg);
-            },
-        }
-    }
-
     fn compile_constants(self: *Self, chunk: *Chunk, constant: *const ContextIR.Constant) void {
         switch (constant.*) {
             .Int => |value| {
-                chunk.write_op_code(.OpPush);
+                chunk.write_op_code(.OpPushLong);
                 chunk.write_long(@as(u64, @bitCast(value)));
             },
             .Float => |value| {
-                chunk.write_op_code(.OpPush);
+                chunk.write_op_code(.OpPushLong);
                 chunk.write_long(@as(u64, @bitCast(value)));
             },
+            .Bool => |value| {
+                chunk.write_op_code(.OpPushByte);
+                chunk.write_bool(value);
+            },
             .Variable => |id| {
-                const alignment = self.ctx.get_variable(id) orelse unreachable;
-                chunk.write_op_code(.OpLoad);
-                chunk.write_long(alignment.alignment);
+                const variable = self.ctx.get_variable(id) orelse unreachable;
+                switch (variable.tp) {
+                    .Primitive => |prim| {
+                        switch (prim) {
+                            .Int, .Float => {
+                                chunk.write_op_code(.OpLoadLong);
+                            },
+                            .Bool => {
+                                chunk.write_op_code(.OpLoadByte);
+                            },
+                        }
+                    },
+                }
+                chunk.write_long(variable.alignment);
             },
         }
     }
@@ -94,14 +83,116 @@ pub const Compiler = struct {
         chunk.write_long(size);
     }
 
-    fn instKind_to_opCode(kind: ContextIR.InstructionKind) OpCode {
+    fn cast_to(self: *Self, source_type: Type, target_type: Type, chunk: *Chunk) void {
+        _ = self;
+        switch (target_type) {
+            Type.Primitive => |prim| {
+                const source_prim = source_type.Primitive;
+                switch (prim) {
+                    Primitive.Int => {
+                        if (source_prim == .Float) {
+                            chunk.write_op_code(.FloatToInt);
+                        }
+                    },
+                    Primitive.Float => {
+                        if (source_prim == .Int) {
+                            chunk.write_op_code(.IntToFloat);
+                        }
+                    },
+                    else => unreachable,
+                    //Primitive.Bool => chunk.write_op_code(.ToBool),
+                }
+            },
+        }
+    }
+
+    fn instKind_to_opCodeF(kind: ContextIR.InstructionKind) OpCode {
         return switch (kind) {
-            .Add => OpCode.OpAdd,
-            .Sub => OpCode.OpSubtract,
-            .Mul => OpCode.OpMultiply,
-            .Div => OpCode.OpDivide,
-            .Pow => OpCode.OpPower,
+            .Add => OpCode.OpAddF,
+            .Sub => OpCode.OpSubtractF,
+            .Mul => OpCode.OpMultiplyF,
+            .Div => OpCode.OpDivideF,
+            .Pow => OpCode.OpPowerF,
             else => unreachable,
         };
+    }
+
+    fn instKind_to_opCodeI(kind: ContextIR.InstructionKind) OpCode {
+        return switch (kind) {
+            .Add => OpCode.OpAddI,
+            .Sub => OpCode.OpSubtractI,
+            .Mul => OpCode.OpMultiplyI,
+            .Div => OpCode.OpDivideI,
+            .Pow => OpCode.OpPowerI,
+            else => unreachable,
+        };
+    }
+
+    fn compile_instruction(self: *Self, chunk: *Chunk, instruction: *const ContextIR.Instruction) void {
+        switch (instruction.op) {
+            .Add, .Sub, .Mul, .Div, .Pow => {
+                if (instruction.operand1) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+
+                if (instruction.operand2) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+
+                root.assert(instruction.result_type != null);
+                root.assert(instruction.result_type.? == .Primitive);
+
+                const prim = instruction.result_type.?.get_primitive().?;
+                chunk.write_op_code(switch (prim) {
+                    Primitive.Int => instKind_to_opCodeI(instruction.op),
+                    Primitive.Float => instKind_to_opCodeF(instruction.op),
+                    else => unreachable,
+                });
+            },
+            .Assign => {
+                root.assert(instruction.operand1 != null);
+                root.assert(instruction.operand1.? == .Variable);
+                root.assert(instruction.source_type != null);
+
+                const source_type = instruction.source_type.?;
+
+                const variable = self.ctx.get_variable(instruction.operand1.?.Variable) orelse unreachable;
+
+                if (instruction.operand2) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+                if (!source_type.is(variable.tp)) {
+                    self.cast_to(source_type, variable.tp, chunk);
+                }
+                switch (variable.tp) {
+                    .Primitive => |prim| {
+                        switch (prim) {
+                            .Int, .Float => {
+                                chunk.write_op_code(.OpStoreLong);
+                            },
+                            .Bool => {
+                                chunk.write_op_code(.OpStoreByte);
+                            },
+                        }
+                    },
+                }
+                chunk.write_long(variable.alignment);
+            },
+            .Dbg => {
+                if (instruction.operand1) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+                root.assert(instruction.result_type != null);
+                switch (instruction.result_type.?) {
+                    .Primitive => |prim| {
+                        switch (prim) {
+                            Primitive.Int => chunk.write_op_code(.OpDbgI),
+                            Primitive.Float => chunk.write_op_code(.OpDbgF),
+                            Primitive.Bool => chunk.write_op_code(.OpDbgB),
+                        }
+                    },
+                }
+            },
+        }
     }
 };

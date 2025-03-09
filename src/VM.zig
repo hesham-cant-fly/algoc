@@ -18,19 +18,37 @@ pub const Op = enum(i8) {
 pub const OpCode = enum(u8) {
     SetupStack, // setup_stack <size>
 
-    OpStore, // store <alignment>
-    OpLoad, // load <alignment>
+    OpStoreLong, // store_long <alignment>
+    OpLoadLong, // load_long <alignment>
 
-    OpPush, // push <value>
-    OpPop,
+    OpStoreByte, // store_byte <alignment>
+    OpLoadByte, // load_byte <alignment>
 
-    OpAdd, // add
-    OpSubtract, // sub
-    OpMultiply, // mul
-    OpDivide, // div
-    OpPower, // pow
+    OpPushLong, // push_long <value>
+    OpPopLong, // pop_long
 
-    OpDbg, // dbg
+    OpPushByte, // push_byte <value>
+    OpPopByte, // pop_byte
+
+    OpAddF, // addf
+    OpSubtractF, // subf
+    OpMultiplyF, // mulf
+    OpDivideF, // divf
+    OpPowerF, // powf
+
+    OpAddI, // addi
+    OpSubtractI, // subi
+    OpMultiplyI, // muli
+    OpDivideI, // divi
+    OpPowerI, // powi
+
+    FloatToInt, // to_int
+    IntToFloat, // to_float
+    // ToBool, // to_bool
+
+    OpDbgF, // dbgf
+    OpDbgI, // dbgi
+    OpDbgB, // dbgb
 
     OpHalt, // halt
 };
@@ -56,6 +74,10 @@ pub const Chunk = struct {
 
     pub fn write(self: *Self, byte: u8) void {
         self.code.append(byte) catch @panic("Out Of Memory.");
+    }
+
+    pub fn write_bool(self: *Self, b: bool) void {
+        self.code.append(@as(u8, @intFromBool(b))) catch @panic("Out Of Memory.");
     }
 
     pub fn write_long(self: *Self, long: u64) void {
@@ -105,47 +127,97 @@ pub const Chunk = struct {
                     i += 8;
                 },
 
-                .OpStore => { // store <alignment>
-                    debug.print("<store_at> {d}\n", .{
+                .OpStoreLong => {
+                    debug.print("<store_long_at> {d}\n", .{
                         self.get_long(i + 1),
                     });
                     i += 8;
                 },
-                .OpLoad => { // load <alignment>
-                    debug.print("<load_from> {d}\n", .{
+                .OpLoadLong => { // load_long <alignment>
+                    debug.print("<load_long_from> {d}\n", .{
+                        self.get_long(i + 1),
+                    });
+                    i += 8;
+                },
+                .OpStoreByte => { // store_byte <alignment>
+                    debug.print("<store_byte_at> {d}\n", .{
+                        self.get_long(i + 1),
+                    });
+                    i += 8;
+                },
+                .OpLoadByte => { // load_byte <alignment>
+                    debug.print("<load_byte_from> {d}\n", .{
                         self.get_long(i + 1),
                     });
                     i += 8;
                 },
 
-                .OpPush => { // push <u64>
-                    debug.print("<push> {d}\n", .{
+                .OpPushLong => { // push_long <u64>
+                    debug.print("<push_long> {d}\n", .{
                         self.get_long(i + 1),
                     });
                     i += 8;
                 },
-                .OpPop => { // pop
-                    debug.print("<pop>\n", .{});
+                .OpPopLong => { // pop_long
+                    debug.print("<pop_long>\n", .{});
+                },
+                .OpPushByte => { // push_byte <u8>
+                    debug.print("<push_byte> {d}\n", .{
+                        self.get_op_code(i + 1),
+                    });
+                    i += 1;
+                },
+                .OpPopByte => { // pop_byte
+                    debug.print("<pop_byte>\n", .{});
                 },
 
-                .OpAdd => { // add
-                    debug.print("<add>\n", .{});
+                .OpAddF => { // addf
+                    debug.print("<addf>\n", .{});
                 },
-                .OpSubtract => { // sub
-                    debug.print("<sub>\n", .{});
+                .OpSubtractF => { // subf
+                    debug.print("<subf>\n", .{});
                 },
-                .OpMultiply => { // mul
-                    debug.print("<mul>\n", .{});
+                .OpMultiplyF => { // mul
+                    debug.print("<mulf>\n", .{});
                 },
-                .OpDivide => { // div
-                    debug.print("<div>\n", .{});
+                .OpDivideF => { // div
+                    debug.print("<divf>\n", .{});
                 },
-                .OpPower => { // pow
-                    debug.print("<pow>\n", .{});
+                .OpPowerF => { // pow
+                    debug.print("<powf>\n", .{});
                 },
 
-                .OpDbg => { // dbg
-                    debug.print("<dbg>\n", .{});
+                .OpAddI => { // addi
+                    debug.print("<addi>\n", .{});
+                },
+                .OpSubtractI => { // subi
+                    debug.print("<subi>\n", .{});
+                },
+                .OpMultiplyI => { // muli
+                    debug.print("<muli>\n", .{});
+                },
+                .OpDivideI => { // divi
+                    debug.print("<divi>\n", .{});
+                },
+                .OpPowerI => { // powi
+                    debug.print("<powi>\n", .{});
+                },
+
+                .IntToFloat => { // to_float
+                    debug.print("<int_to_float>\n", .{});
+                },
+                .FloatToInt => { // to_int
+                    debug.print("<flaot_to_int>\n", .{});
+                },
+
+                .OpDbgI => { // dbgi
+                    debug.print("<dbgi>\n", .{});
+                },
+                .OpDbgF => { // dbgf
+                    debug.print("<dbgf>\n", .{});
+                },
+                .OpDbgB => { // dbgb
+                    debug.print("<dbgb>\n", .{});
                 },
 
                 .OpHalt => { // halt
@@ -185,6 +257,10 @@ pub const VM = struct {
         self.allocator.free(self.memory_layout);
     }
 
+    pub fn mem_get_u8(self: *Self, index: usize) u8 {
+        return self.memory_layout[index];
+    }
+
     pub fn mem_get_u64(self: *Self, index: usize) u64 {
         const b1 = self.memory_layout[index];
         const b2 = self.memory_layout[index + 1];
@@ -205,6 +281,9 @@ pub const VM = struct {
             (@as(u64, b1));
     }
 
+    pub fn mem_set_u8(self: *Self, index: usize, value: u8) void {
+        self.memory_layout[index] = value;
+    }
     pub fn mem_set_u64(self: *Self, index: usize, value: u64) void {
         self.memory_layout[index] = @as(u8, @truncate(value));
         self.memory_layout[index + 1] = @as(u8, @truncate(value >> 8));
@@ -214,6 +293,11 @@ pub const VM = struct {
         self.memory_layout[index + 5] = @as(u8, @truncate(value >> 40));
         self.memory_layout[index + 6] = @as(u8, @truncate(value >> 48));
         self.memory_layout[index + 7] = @as(u8, @truncate(value >> 56));
+    }
+
+    pub fn read_byte(self: *Self) u8 {
+        self.ip += 1;
+        return self.chunk.get_op_code(self.ip - 1);
     }
 
     pub fn read_long(self: *Self) u64 {
@@ -244,63 +328,30 @@ pub const VM = struct {
             (@as(u64, b1));
     }
 
-    pub fn run(self: *Self) Error!void {
-        while (true) {
-            if (self.ip >= self.chunk.code.items.len) return Error.OutOfBounds;
+    fn do_binaryi(self: *Self, op: Op) void {
+        const b = @as(i64, @bitCast(self.pop_u64()));
+        const a = @as(i64, @bitCast(self.pop_u64()));
 
-            // self.dbg();
-
-            const opcode = @as(OpCode, @enumFromInt(self.chunk.get_op_code(self.ip)));
-            self.ip += 1;
-
-            switch (opcode) {
-                OpCode.SetupStack => {
-                    const size = self.read_long();
-                    self.memory_layout = self.allocator.alloc(u8, size) catch @panic("Out Of Memory.");
-                },
-                OpCode.OpLoad => {
-                    const at = self.read_long();
-                    const val = self.mem_get_u64(at);
-                    self.push_u64(val);
-                },
-                OpCode.OpStore => {
-                    const at = self.read_long();
-                    const val = self.pop_u64();
-                    self.mem_set_u64(at, val);
-                },
-                OpCode.OpPush => {
-                    const value = self.read_long();
-                    self.push_u64(value);
-                },
-                OpCode.OpPop => _ = self.pop_u64(),
-                OpCode.OpAdd => self.do_binary(.add),
-                OpCode.OpSubtract => self.do_binary(.sub),
-                OpCode.OpMultiply => self.do_binary(.mul),
-                OpCode.OpDivide => self.do_binary(.div),
-                OpCode.OpPower => self.do_binary(.pow),
-
-                OpCode.OpDbg => {
-                    print("{d}\n", .{self.pop_u64()});
-                },
-
-                OpCode.OpHalt => {
-                    return;
-                },
-            }
-        }
+        self.push_u64(@as(u64, @bitCast(switch (op) {
+            Op.add => a + b,
+            Op.sub => a - b,
+            Op.mul => a * b,
+            Op.div => @divTrunc(a, b),
+            Op.pow => math.pow(i64, a, b),
+        })));
     }
 
-    fn do_binary(self: *Self, op: Op) void {
-        const b = self.pop_u64();
-        const a = self.pop_u64();
+    fn do_binaryf(self: *Self, op: Op) void {
+        const b = @as(f64, @bitCast(self.pop_u64()));
+        const a = @as(f64, @bitCast(self.pop_u64()));
 
-        switch (op) {
-            Op.add => self.push_u64(a + b),
-            Op.sub => self.push_u64(a - b),
-            Op.mul => self.push_u64(a * b),
-            Op.div => self.push_u64(a / b),
-            Op.pow => self.push_u64(math.pow(u64, a, b)),
-        }
+        self.push_u64(@as(u64, @bitCast(switch (op) {
+            Op.add => a + b,
+            Op.sub => a - b,
+            Op.mul => a * b,
+            Op.div => a / b,
+            Op.pow => math.pow(f64, a, b),
+        })));
     }
 
     fn push_u8(self: *Self, value: u8) void {
@@ -372,5 +423,92 @@ pub const VM = struct {
             (@as(u64, b6) << 40) |
             (@as(u64, b7) << 48) |
             (@as(u64, b8) << 56);
+    }
+
+    pub fn run(self: *Self) Error!void {
+        while (true) {
+            if (self.ip >= self.chunk.code.items.len) return Error.OutOfBounds;
+
+            // self.dbg();
+
+            const opcode = @as(OpCode, @enumFromInt(self.chunk.get_op_code(self.ip)));
+            self.ip += 1;
+
+            switch (opcode) {
+                OpCode.SetupStack => {
+                    const size = self.read_long();
+                    self.memory_layout = self.allocator.alloc(u8, size) catch @panic("Out Of Memory.");
+                },
+                OpCode.OpLoadLong => {
+                    const at = self.read_long();
+                    const val = self.mem_get_u64(at);
+                    self.push_u64(val);
+                },
+                OpCode.OpStoreLong => {
+                    const at = self.read_long();
+                    const val = self.pop_u64();
+                    self.mem_set_u64(at, val);
+                },
+                OpCode.OpLoadByte => {
+                    const at = self.read_long();
+                    const val = self.mem_get_u8(at);
+                    self.push_u8(val);
+                },
+                OpCode.OpStoreByte => {
+                    const at = self.read_long();
+                    const val = self.pop_u8();
+                    self.mem_set_u8(at, val);
+                },
+
+                OpCode.OpPushLong => {
+                    const value = self.read_long();
+                    self.push_u64(value);
+                },
+                OpCode.OpPopLong => _ = self.pop_u64(),
+                OpCode.OpPushByte => {
+                    const value = self.read_byte();
+                    self.push_u8(value);
+                },
+                OpCode.OpPopByte => _ = self.pop_u8(),
+
+                OpCode.IntToFloat => {
+                    const v: i64 = @bitCast(self.pop_u64());
+                    const target: f64 = @floatFromInt(v);
+                    self.push_u64(@as(u64, @bitCast(target)));
+                },
+                OpCode.FloatToInt => {
+                    const v: f64 = @bitCast(self.pop_u64());
+                    const target: i64 = @intFromFloat(v);
+                    self.push_u64(@as(u64, @bitCast(target)));
+                },
+                // OpCode.ToBool => unreachable,
+
+                OpCode.OpAddI => self.do_binaryi(.add),
+                OpCode.OpSubtractI => self.do_binaryi(.sub),
+                OpCode.OpMultiplyI => self.do_binaryi(.mul),
+                OpCode.OpDivideI => self.do_binaryi(.div),
+                OpCode.OpPowerI => self.do_binaryi(.pow),
+
+                OpCode.OpAddF => self.do_binaryf(.add),
+                OpCode.OpSubtractF => self.do_binaryf(.sub),
+                OpCode.OpMultiplyF => self.do_binaryf(.mul),
+                OpCode.OpDivideF => self.do_binaryf(.div),
+                OpCode.OpPowerF => self.do_binaryf(.pow),
+
+                OpCode.OpDbgI => {
+                    print("int: {d}\n", .{@as(i64, @bitCast(self.pop_u64()))});
+                },
+                OpCode.OpDbgF => {
+                    print("float: {d}\n", .{@as(f64, @bitCast(self.pop_u64()))});
+                },
+                OpCode.OpDbgB => {
+                    print("bool: {s}\n", .{if (self.pop_u8() != 0) "vrai" else "faux"});
+                },
+
+                OpCode.OpHalt => {
+                    return;
+                },
+            }
+        }
     }
 };

@@ -20,7 +20,6 @@ pub fn main() !void {
         if (status == .leak) @panic("Memory Leak Detected!!");
     }
 
-    // const text: []const u8 = "5 + \"5584\" - '44' / 12 * (5) - abc";
     const text = read_file("./main.algo", alloc);
     defer alloc.free(text);
 
@@ -49,7 +48,9 @@ pub fn main() !void {
     var vm = root.Vm.init(alloc, &chunk);
     defer vm.deinit();
 
+    std.debug.print("Running..\n\n", .{});
     try vm.run();
+    std.debug.print("\n\nExited!\n", .{});
 }
 
 fn read_file(path: []const u8, allocator: mem.Allocator) []const u8 {

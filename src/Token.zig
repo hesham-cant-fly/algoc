@@ -9,8 +9,20 @@ pub const TokenKind = enum(i8) {
     Star, // '*'
     Hat, // '^'
     FSlash, // '/'
+    Mod, // '%' 'mod'
 
-    Assign, // '<-'
+    Not, // 'non' '!'
+    Or, // 'ou'
+    And, // 'et'
+
+    Eq, // '='
+    NotEq, // '!=' '<>'
+    Less, // '<'
+    Greater, // '>'
+    LessEq, // '<='
+    GreaterEq, // '>='
+
+    Assign, // '<-' '=' '->' ':='
 
     OpenParen, // '('
     CloseParen, // ')'
@@ -22,10 +34,13 @@ pub const TokenKind = enum(i8) {
     IntLit,
     FloatLit,
     Identifier,
+    True, // 'vrai'
+    False, // 'faux'
 
     // Data types
-    Int,
-    Float,
+    Int, // 'entier'
+    Float, // 'réel' 'reel'
+    Bool, // 'booleen' 'booléen'
 
     // Keywords
     Algorithm,

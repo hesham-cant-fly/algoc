@@ -318,6 +318,7 @@ pub const TypeNode = union(enum) {
 
     Int,
     Float,
+    Bool,
     Id: *const Token,
 
     pub fn create(allocator: mem.Allocator) *Self {
@@ -336,6 +337,12 @@ pub const TypeNode = union(enum) {
         return node;
     }
 
+    pub fn create_bool(allocator: mem.Allocator) *Self {
+        const node = create(allocator);
+        node.* = .Bool;
+        return node;
+    }
+
     pub fn create_id(allocator: mem.Allocator, id: *const Token) *Self {
         const node = create(allocator);
         node.* = .{ .Id = id };
@@ -351,6 +358,7 @@ pub const TypeNode = union(enum) {
         switch (self.*) {
             .Int => debug.print("{s}Int\n", .{indent}),
             .Float => debug.print("{s}Float\n", .{indent}),
+            .Bool => debug.print("{s}Bool\n", .{indent}),
             .Id => |id| debug.print("{s}Id: '{s}'\n", .{ indent, id.lexem }),
         }
     }

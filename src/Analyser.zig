@@ -64,6 +64,7 @@ pub const ContextIR = struct {
     pub const Constant = union(enum) {
         Int: i64,
         Float: f64,
+        Bool: bool,
         Variable: []const u8,
     };
 
@@ -72,11 +73,12 @@ pub const ContextIR = struct {
         operand1: ?Constant = null,
         operand2: ?Constant = null,
         next: ?*Instruction = null,
+        source_type: ?Type = null,
         result_type: ?Type = null,
 
         pub fn create(allocator: mem.Allocator) *Instruction {
             const result = allocator.create(Instruction) catch @panic("Out Of Memory.");
-            result.* = .{ .next = null };
+            result.* = Instruction{};
             return result;
         }
 
@@ -257,6 +259,18 @@ pub const Analyser = struct {
                     .Float = fmt.parseFloat(f64, tok.lexem) catch @panic("Fix your thing."),
                 },
             },
+            .True => ExprTypeInfo{
+                .tp = Type{ .Primitive = .Bool },
+                .constant = ContextIR.Constant{
+                    .Bool = true,
+                },
+            },
+            .False => ExprTypeInfo{
+                .tp = Type{ .Primitive = .Bool },
+                .constant = ContextIR.Constant{
+                    .Bool = false,
+                },
+            },
             .Identifier => res: {
                 if (self.ctx.get_variable(tok.lexem)) |symbol| {
                     break :res ExprTypeInfo{
@@ -287,6 +301,7 @@ pub const Analyser = struct {
         instruction.op = .Assign;
         instruction.operand1 = .{ .Variable = symbol.identifier.lexem };
         instruction.operand2 = rhs_tp.constant;
+        instruction.source_type = rhs_tp.tp;
         instruction.result_type = symbol.tp;
         self.ctx.add_instruction(instruction);
 
@@ -298,13 +313,13 @@ pub const Analyser = struct {
         const lhs = try self.analyse_expression(node.lhs);
         const rhs = try self.analyse_expression(node.rhs);
 
-        const res_tp = try self.binary_type(node.op, lhs.tp, rhs.tp);
+        const res_tp = lhs.tp.binary(&rhs.tp, node.op) orelse @panic("something bad happened");
 
         const instruction = ContextIR.Instruction.create(self.ctx.allocator);
         instruction.op = ContextIR.InstructionKind.from_token_kind(node.op.kind);
         instruction.operand1 = lhs.constant;
         instruction.operand2 = rhs.constant;
-        instruction.result_type = res_tp; // TODO: The resulted type of a binary expression should be specified in here
+        instruction.result_type = res_tp;
         self.ctx.add_instruction(instruction);
 
         return ExprTypeInfo{
@@ -313,26 +328,13 @@ pub const Analyser = struct {
             .tp = res_tp,
         };
     }
-
-    fn binary_type(self: *Self, op: *const Token, lhs: Type, rhs: Type) Error!Type {
-        return switch (op.kind) {
-            .Plus => try self.type_addition(lhs, rhs),
-            else => @panic("unimplemented"),
-        };
-    }
-
-    inline fn type_addition(self: *Self, lhs: Type, rhs: Type) Error!Type {
-        _ = self;
-        _ = lhs;
-        _ = rhs;
-        @panic("unimplemented");
-    }
 };
 
 fn to_type(type_node: *const AST.Type) Type {
     return switch (type_node.node.*) {
         .Int => Type{ .Primitive = .Int },
         .Float => Type{ .Primitive = .Float },
+        .Bool => Type{ .Primitive = .Bool },
         else => @panic("Unimplemented."),
     };
 }

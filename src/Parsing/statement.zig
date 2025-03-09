@@ -52,6 +52,7 @@ pub fn parse_type(self: *Self) ParserError!*AST.Type {
     const node = switch (self.advance().kind) {
         TokenKind.Int => AST.TypeNode.create_int(self.allocator),
         TokenKind.Float => AST.TypeNode.create_float(self.allocator),
+        TokenKind.Bool => AST.TypeNode.create_bool(self.allocator),
         TokenKind.Identifier => AST.TypeNode.create_id(self.allocator, self.prevous()),
         else => return ParserError.UnexpectedToken,
     };

@@ -1,36 +1,14 @@
 #+title: Progress
 
-* TODO Front End [0/2]
-** TODO Scanner [2/3]
-*** [X] Arithmatic
-*** [X] Literals
-*** [ ] Keywords [1/3]
-**** [ ] not sensible to the case
-**** [ ] Automatically ommit those special french characters for keywords. eg. this =réel= should be the same as this =reel=
-**** [X] Algorithm
-** TODO Parser [0/4]
-*** TODO Program [3/6]
-**** [X] Algorithm Id
-**** [ ] Constants
-**** [ ] Type Declaration [0/2]
-***** [ ] Enums
-***** [ ] Structs
-**** [X] Variable Declaration
-**** [ ] Functions and Procedure Declaration
-**** [X] The Program Block
-*** TODO Type [1/3]
-**** [ ] Primitives [2/5]
-***** [X] entier
-***** [X] réel
-***** [ ] caractère
-***** [ ] booléen
-***** [ ] chaîne
-**** [X] Identified
-**** [ ] Arrays (tableau)
-*** TODO Expression [3/5]
-**** [X] Term =+ -=
-**** [X] Factor =* / ^=
-**** [ ] Unary
-**** [X] Primaries
-**** [X] Assignment
-** TODO Analyser [/]
+* TODO Error logs
+* TODO Analyser [2/5]
+** [X] Boolean
+** [X] Better Types
+** [ ] logical ~not or and~
+** [ ] comparation ~= <> < > <= >=~
+** [ ] If statement
+* TODO Compilation and Runtime [2/4]
+** [X] Boolean
+** [X] Implicite type conversion
+** [ ] Comparation and logical
+** [ ] If Statement
