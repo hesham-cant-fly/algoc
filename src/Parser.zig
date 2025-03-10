@@ -21,6 +21,7 @@ pub const Parser = struct {
     current: usize = 0,
 
     pub const parse_expression = expressions.parse_expression;
+    pub const parse_assignment = expressions.parse_assignment;
     pub const parse_program = statement.parse_program;
     pub const parse_statement = statement.parse_statement;
 

@@ -11,10 +11,10 @@ const Self = root.Parser;
 const Result = root.ParserError!*AST.Expr;
 
 pub fn parse_expression(self: *Self) Result {
-    return parse_assignment(self);
+    return parse_or(self);
 }
 
-fn parse_assignment(self: *Self) Result {
+pub fn parse_assignment(self: *Self) Result {
     const start = self.peek();
     if (self.match(TokenKind.Identifier)) |id| {
         if (self.match(.{ TokenKind.Assign, TokenKind.Eq })) |op| {

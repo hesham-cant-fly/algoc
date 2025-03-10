@@ -48,7 +48,10 @@ pub const ContextIR = struct {
         Pow, // ^
         Negate, // -
         Posite, // +
+        Eq, // =
         Not, // non
+        And, // et
+        Or, // ou
         Assign,
         Dbg,
 
@@ -59,6 +62,9 @@ pub const ContextIR = struct {
                 .Star => InstructionKind.Mul,
                 .FSlash => InstructionKind.Div,
                 .Hat => InstructionKind.Pow,
+                .And => InstructionKind.And,
+                .Or => InstructionKind.Or,
+                .Eq => InstructionKind.Eq,
                 else => unreachable,
             };
         }

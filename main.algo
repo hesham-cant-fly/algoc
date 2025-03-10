@@ -2,12 +2,24 @@ algorithme test
 
 variable
   a: entier // int type
+  b: entier
 
-debut
-  a <- -(1 + 5)
+début
+  a := 1
+  b := 2
   dbg a
-  dbg -a
+  dbg b
 
-  dbg non vrai // => faux
-  dbg non faux // => vrai
+  dbg a = b
+  b := 1
+  dbg a = b
+
+  // dbg vrai et vrai // => vrai
+  // dbg vrai et faux // => faux
+  // dbg faux et vrai // => faux
+  // dbg faux et faux // => faux
+  // dbg vrai ou vrai // => vrai
+  // dbg vrai ou faux // => vrai
+  // dbg faux ou vrai // => vrai
+  // dbg faux ou faux // => faux
 fin

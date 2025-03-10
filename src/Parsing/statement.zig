@@ -84,9 +84,18 @@ pub fn parse_statement(self: *Self) ParserError!*AST.Stmt {
         TokenKind.If => try parse_if(self),
         else => res: {
             self.current -= 1;
-            break :res try parse_expr_stmt(self);
+            break :res parse_assign(self) catch try parse_expr_stmt(self);
         },
     };
+}
+
+pub fn parse_assign(self: *Self) ParserError!*AST.Stmt {
+    const start = self.peek();
+    const expr = try self.parse_assignment();
+    const end = self.prevous();
+    const node = AST.StmtNode.create_expr(self.allocator, expr);
+    const stmt = AST.Stmt.create(self.allocator, start, end, node);
+    return stmt;
 }
 
 pub fn parse_expr_stmt(self: *Self) ParserError!*AST.Stmt {

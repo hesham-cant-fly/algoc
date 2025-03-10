@@ -61,7 +61,15 @@ pub const Primitive = enum(u8) {
                 if (self.* == .Bool and other.* == .Bool) return Primitive.Bool;
                 return null;
             },
-            TokenKind.Eq, TokenKind.NotEq, TokenKind.Less, TokenKind.Greater, TokenKind.LessEq, TokenKind.GreaterEq => {
+            TokenKind.Eq, TokenKind.NotEq => {
+                if (self.is_number() and other.is_number())
+                    return Primitive.Bool;
+                if (self.* == .Bool and other.* == .Bool)
+                    return Primitive.Bool;
+
+                return null;
+            },
+            TokenKind.Less, TokenKind.Greater, TokenKind.LessEq, TokenKind.GreaterEq => {
                 return Primitive.Bool;
             },
             else => unreachable,
@@ -110,6 +118,10 @@ pub const Type = union(enum) {
         return switch (self.*) {
             .Primitive => |pri| pri,
         };
+    }
+
+    pub fn is_bool(self: *const Self) bool {
+        return self.* == .Primitive and self.Primitive == .Bool;
     }
 
     pub fn binary(self: *const Self, other: *const Type, op: *const Token) ?Type {

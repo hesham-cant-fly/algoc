@@ -44,19 +44,22 @@ pub const Compiler = struct {
         return chunk;
     }
 
-    fn compile_constants(self: *Self, chunk: *Chunk, constant: *const ContextIR.Constant) void {
+    fn compile_constants(self: *Self, chunk: *Chunk, constant: *const ContextIR.Constant) Type {
         switch (constant.*) {
             .Int => |value| {
                 chunk.write_op_code(.OpPushLong);
                 chunk.write_long(@as(u64, @bitCast(value)));
+                return Type{ .Primitive = .Int };
             },
             .Float => |value| {
                 chunk.write_op_code(.OpPushLong);
                 chunk.write_long(@as(u64, @bitCast(value)));
+                return Type{ .Primitive = .Float };
             },
             .Bool => |value| {
                 chunk.write_op_code(.OpPushByte);
                 chunk.write_bool(value);
+                return Type{ .Primitive = .Bool };
             },
             .Variable => |id| {
                 const variable = self.ctx.get_variable(id) orelse unreachable;
@@ -73,6 +76,7 @@ pub const Compiler = struct {
                     },
                 }
                 chunk.write_long(variable.alignment);
+                return variable.tp;
             },
         }
     }
@@ -99,7 +103,9 @@ pub const Compiler = struct {
                             chunk.write_op_code(.IntToFloat);
                         }
                     },
-                    else => unreachable,
+                    Primitive.Bool => {
+                        // TODO: maybe you just want to cast it to and int to make your life easier
+                    },
                     //Primitive.Bool => chunk.write_op_code(.ToBool),
                 }
             },
@@ -132,11 +138,11 @@ pub const Compiler = struct {
         switch (instruction.op) {
             .Add, .Sub, .Mul, .Div, .Pow => {
                 if (instruction.operand1) |op| {
-                    self.compile_constants(chunk, &op);
+                    _ = self.compile_constants(chunk, &op);
                 }
 
                 if (instruction.operand2) |op| {
-                    self.compile_constants(chunk, &op);
+                    _ = self.compile_constants(chunk, &op);
                 }
 
                 root.assert(instruction.result_type != null);
@@ -149,14 +155,55 @@ pub const Compiler = struct {
                     else => unreachable,
                 });
             },
+            .Eq => {
+                root.assert(instruction.result_type != null);
+
+                var tp: Type = undefined;
+                if (instruction.operand1) |con| {
+                    tp = self.compile_constants(chunk, &con);
+                }
+
+                if (instruction.operand2) |con| {
+                    const source_type = self.compile_constants(chunk, &con);
+                    self.cast_to(source_type, tp, chunk);
+                }
+
+                if (tp.is_bool()) {
+                    chunk.write_op_code(.OpEqByte);
+                } else {
+                    chunk.write_op_code(.OpEq);
+                }
+            },
+            .And => {
+                if (instruction.operand1) |con| {
+                    _ = self.compile_constants(chunk, &con);
+                }
+
+                if (instruction.operand2) |con| {
+                    _ = self.compile_constants(chunk, &con);
+                }
+
+                chunk.write_op_code(.OpAnd);
+            },
+            .Or => {
+                if (instruction.operand1) |con| {
+                    _ = self.compile_constants(chunk, &con);
+                }
+
+                if (instruction.operand2) |con| {
+                    _ = self.compile_constants(chunk, &con);
+                }
+
+                chunk.write_op_code(.OpOr);
+            },
             .Posite => {
                 if (instruction.operand1) |op| {
-                    self.compile_constants(chunk, &op);
+                    _ = self.compile_constants(chunk, &op);
                 }
             },
             .Negate => {
                 if (instruction.operand1) |con| {
-                    self.compile_constants(chunk, &con);
+                    _ = self.compile_constants(chunk, &con);
                 }
 
                 const prim = instruction.source_type.?.Primitive;
@@ -168,7 +215,7 @@ pub const Compiler = struct {
             },
             .Not => {
                 if (instruction.operand1) |con| {
-                    self.compile_constants(chunk, &con);
+                    _ = self.compile_constants(chunk, &con);
                 }
 
                 chunk.write_op_code(.OpNot);
@@ -183,11 +230,12 @@ pub const Compiler = struct {
                 const variable = self.ctx.get_variable(instruction.operand1.?.Variable) orelse unreachable;
 
                 if (instruction.operand2) |op| {
-                    self.compile_constants(chunk, &op);
+                    _ = self.compile_constants(chunk, &op);
                 }
                 if (!source_type.is(variable.tp)) {
                     self.cast_to(source_type, variable.tp, chunk);
                 }
+
                 switch (variable.tp) {
                     .Primitive => |prim| {
                         switch (prim) {
@@ -204,7 +252,7 @@ pub const Compiler = struct {
             },
             .Dbg => {
                 if (instruction.operand1) |op| {
-                    self.compile_constants(chunk, &op);
+                    _ = self.compile_constants(chunk, &op);
                 }
                 root.assert(instruction.result_type != null);
                 switch (instruction.result_type.?) {

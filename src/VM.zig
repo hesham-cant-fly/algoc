@@ -44,7 +44,11 @@ pub const OpCode = enum(u8) {
 
     OpNegateI, // negatei
     OpNegateF, // negatef
+    OpEq, // eq
+    OpEqByte, // eq_byte
     OpNot, // not
+    OpAnd, // and
+    OpOr, // or
 
     FloatToInt, // to_int
     IntToFloat, // to_float
@@ -212,8 +216,20 @@ pub const Chunk = struct {
                 .OpNegateI => { // negatei
                     debug.print("<negatei>\n", .{});
                 },
+                .OpEq => { // eq
+                    debug.print("<eq>\n", .{});
+                },
+                .OpEqByte => { // eq_byte
+                    debug.print("<eq_byte>\n", .{});
+                },
                 .OpNot => { // not
                     debug.print("<not>\n", .{});
+                },
+                .OpAnd => { // and
+                    debug.print("<and>\n", .{});
+                },
+                .OpOr => { // or
+                    debug.print("<or>\n", .{});
                 },
 
                 .IntToFloat => { // to_float
@@ -512,8 +528,30 @@ pub const VM = struct {
                     const target = -v;
                     self.push_u64(@bitCast(target));
                 },
+                OpCode.OpEq => {
+                    const a = self.pop_u64();
+                    const b = self.pop_u64();
+                    self.push_u8(@intFromBool(a == b));
+                },
+                OpCode.OpEqByte => {
+                    const a = self.pop_u8();
+                    const b = self.pop_u8();
+                    self.push_u8(@intFromBool(a == b));
+                },
                 OpCode.OpNot => {
                     self.push_u8(@intFromBool(self.pop_u8() == 0));
+                },
+                OpCode.OpAnd => {
+                    const a: bool = self.pop_u8() == 1;
+                    const b: bool = self.pop_u8() == 1;
+
+                    self.push_u8(@intFromBool(a and b));
+                },
+                OpCode.OpOr => {
+                    const a: bool = self.pop_u8() == 1;
+                    const b: bool = self.pop_u8() == 1;
+
+                    self.push_u8(@intFromBool(a or b));
                 },
 
                 OpCode.OpAddF => self.do_binaryf(.add),
