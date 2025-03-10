@@ -149,6 +149,30 @@ pub const Compiler = struct {
                     else => unreachable,
                 });
             },
+            .Posite => {
+                if (instruction.operand1) |op| {
+                    self.compile_constants(chunk, &op);
+                }
+            },
+            .Negate => {
+                if (instruction.operand1) |con| {
+                    self.compile_constants(chunk, &con);
+                }
+
+                const prim = instruction.source_type.?.Primitive;
+                chunk.write_op_code(switch (prim) {
+                    Primitive.Int => .OpNegateI,
+                    Primitive.Float => .OpNegateF,
+                    else => unreachable,
+                });
+            },
+            .Not => {
+                if (instruction.operand1) |con| {
+                    self.compile_constants(chunk, &con);
+                }
+
+                chunk.write_op_code(.OpNot);
+            },
             .Assign => {
                 root.assert(instruction.operand1 != null);
                 root.assert(instruction.operand1.? == .Variable);

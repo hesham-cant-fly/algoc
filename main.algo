@@ -1,34 +1,13 @@
 algorithme test
 
-var
-  a, b: entier // int type
-  c: réel // float type
-  tmp: entier
-  bo: booléen // Here
+variable
+  a: entier // int type
 
 debut
-  // Those are all the same
-  a <- 10
+  a <- -(1 + 5)
   dbg a
+  dbg -a
 
-  b := 20 + a
-  dbg b
-
-  tmp = 5 - b
-  dbg tmp
-
-  c <- 10.1
-  dbg c
-
-  a <- c /* implicitly converting a float type value to int */
-  dbg a
-
-  c <- a /* implicitly converting an int type value to float */
-  dbg c
-
-  // vrai => true
-  // faux => false
-
-  bo := vrai // Boolean
-  dbg bo
+  dbg non vrai // => faux
+  dbg non faux // => vrai
 fin

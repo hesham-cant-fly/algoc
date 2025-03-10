@@ -42,9 +42,12 @@ pub const OpCode = enum(u8) {
     OpDivideI, // divi
     OpPowerI, // powi
 
+    OpNegateI, // negatei
+    OpNegateF, // negatef
+    OpNot, // not
+
     FloatToInt, // to_int
     IntToFloat, // to_float
-    // ToBool, // to_bool
 
     OpDbgF, // dbgf
     OpDbgI, // dbgi
@@ -201,6 +204,16 @@ pub const Chunk = struct {
                 },
                 .OpPowerI => { // powi
                     debug.print("<powi>\n", .{});
+                },
+
+                .OpNegateF => { // negatef
+                    debug.print("<negatef>\n", .{});
+                },
+                .OpNegateI => { // negatei
+                    debug.print("<negatei>\n", .{});
+                },
+                .OpNot => { // not
+                    debug.print("<not>\n", .{});
                 },
 
                 .IntToFloat => { // to_float
@@ -474,12 +487,12 @@ pub const VM = struct {
                 OpCode.IntToFloat => {
                     const v: i64 = @bitCast(self.pop_u64());
                     const target: f64 = @floatFromInt(v);
-                    self.push_u64(@as(u64, @bitCast(target)));
+                    self.push_u64(@bitCast(target));
                 },
                 OpCode.FloatToInt => {
                     const v: f64 = @bitCast(self.pop_u64());
                     const target: i64 = @intFromFloat(v);
-                    self.push_u64(@as(u64, @bitCast(target)));
+                    self.push_u64(@bitCast(target));
                 },
                 // OpCode.ToBool => unreachable,
 
@@ -488,6 +501,20 @@ pub const VM = struct {
                 OpCode.OpMultiplyI => self.do_binaryi(.mul),
                 OpCode.OpDivideI => self.do_binaryi(.div),
                 OpCode.OpPowerI => self.do_binaryi(.pow),
+
+                OpCode.OpNegateF => {
+                    const v: f64 = @bitCast(self.pop_u64());
+                    const target = -v;
+                    self.push_u64(@bitCast(target));
+                },
+                OpCode.OpNegateI => {
+                    const v: i64 = @bitCast(self.pop_u64());
+                    const target = -v;
+                    self.push_u64(@bitCast(target));
+                },
+                OpCode.OpNot => {
+                    self.push_u8(@intFromBool(self.pop_u8() == 0));
+                },
 
                 OpCode.OpAddF => self.do_binaryf(.add),
                 OpCode.OpSubtractF => self.do_binaryf(.sub),

@@ -50,7 +50,7 @@ pub fn main() !void {
 
     std.debug.print("Running..\n\n", .{});
     try vm.run();
-    std.debug.print("\n\nExited!\n", .{});
+    std.debug.print("\nExited!\n", .{});
 }
 
 fn read_file(path: []const u8, allocator: mem.Allocator) []const u8 {

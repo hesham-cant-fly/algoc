@@ -36,6 +36,10 @@ pub const Primitive = enum(u8) {
         return self == other;
     }
 
+    pub fn is_number(self: Self) bool {
+        return self == .Int or self == .Float;
+    }
+
     pub fn dbg(self: Self) void {
         switch (self) {
             .Int => debug.print("Int", .{}),
@@ -60,7 +64,21 @@ pub const Primitive = enum(u8) {
             TokenKind.Eq, TokenKind.NotEq, TokenKind.Less, TokenKind.Greater, TokenKind.LessEq, TokenKind.GreaterEq => {
                 return Primitive.Bool;
             },
-            else => return null,
+            else => unreachable,
+        }
+    }
+
+    pub fn unary(self: Self, op: *const Token) ?Primitive {
+        switch (op.kind) {
+            TokenKind.Plus, TokenKind.Minus => {
+                if (self.is_number()) return self;
+                return null;
+            },
+            TokenKind.Not => {
+                if (self == .Bool) return self;
+                return null;
+            },
+            else => unreachable,
         }
     }
 };
@@ -99,6 +117,15 @@ pub const Type = union(enum) {
             .Primitive => |self_pri| {
                 const other_pri = other.get_primitive() orelse return null;
                 const res_prim = self_pri.binary(&other_pri, op) orelse return null;
+                return Type{ .Primitive = res_prim };
+            },
+        }
+    }
+
+    pub fn unary(self: *const Self, op: *const Token) ?Type {
+        switch (self.*) {
+            .Primitive => |self_pri| {
+                const res_prim = self_pri.unary(op) orelse return null;
                 return Type{ .Primitive = res_prim };
             },
         }

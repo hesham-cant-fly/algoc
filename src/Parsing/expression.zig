@@ -130,14 +130,14 @@ fn parse_power(self: *Self) Result {
 fn parse_unary(self: *Self) Result {
     if (self.match(.{ TokenKind.Not, TokenKind.Minus, TokenKind.Plus })) |op| {
         const start = self.prevous();
-        const expr = try parse_primary(self);
+        const expr = try parse_grouping(self);
         const end = self.prevous();
 
         const node = ExprNode.create_unary(self.allocator, op, expr);
         const res = Expr.create(self.allocator, start, end, node);
         return res;
     }
-    return parse_primary(self);
+    return parse_grouping(self);
 }
 
 fn parse_grouping(self: *Self) Result {

@@ -390,6 +390,11 @@ pub const Expr = struct {
     }
 };
 
+pub const ExprNodeUnary = struct {
+    op: *const Token,
+    rhs: *Expr,
+};
+
 pub const ExprNodeAssign = struct {
     lhs: *const Token,
     op: *const Token,
@@ -409,10 +414,7 @@ pub const ExprNode = union(enum) {
     Grouping: *Expr,
     Binary: ExprNodeBinary,
     Assign: ExprNodeAssign,
-    Unary: struct {
-        op: *const Token,
-        rhs: *Expr,
-    },
+    Unary: ExprNodeUnary,
 
     pub fn create(allocator: mem.Allocator) *ExprNode {
         return allocator.create(ExprNode) catch @panic("Out Of Memory");

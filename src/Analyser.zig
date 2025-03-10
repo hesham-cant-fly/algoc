@@ -46,6 +46,9 @@ pub const ContextIR = struct {
         Mul, // *
         Div, // /
         Pow, // ^
+        Negate, // -
+        Posite, // +
+        Not, // non
         Assign,
         Dbg,
 
@@ -241,7 +244,7 @@ pub const Analyser = struct {
             .Grouping => |node| self.analyse_expression(node),
             .Assign => |*node| self.analyse_assignment(node),
             .Binary => |*node| self.analyse_binary_expression(node),
-            else => unreachable,
+            .Unary => |*node| self.analyse_unary_expression(node),
         };
     }
 
@@ -309,7 +312,6 @@ pub const Analyser = struct {
     }
 
     fn analyse_binary_expression(self: *Self, node: *AST.ExprNodeBinary) Error!ExprTypeInfo {
-        // TODO: Do a better analysing
         const lhs = try self.analyse_expression(node.lhs);
         const rhs = try self.analyse_expression(node.rhs);
 
@@ -319,6 +321,30 @@ pub const Analyser = struct {
         instruction.op = ContextIR.InstructionKind.from_token_kind(node.op.kind);
         instruction.operand1 = lhs.constant;
         instruction.operand2 = rhs.constant;
+        instruction.result_type = res_tp;
+        self.ctx.add_instruction(instruction);
+
+        return ExprTypeInfo{
+            .constant = null,
+            .symbol = null,
+            .tp = res_tp,
+        };
+    }
+
+    fn analyse_unary_expression(self: *Self, node: *AST.ExprNodeUnary) Error!ExprTypeInfo {
+        const rhs = try self.analyse_expression(node.rhs);
+
+        const res_tp = rhs.tp.unary(node.op) orelse @panic("something bad happened.");
+
+        const instruction = ContextIR.Instruction.create(self.ctx.allocator);
+        instruction.op = switch (node.op.kind) {
+            TokenKind.Plus => .Posite,
+            TokenKind.Minus => .Negate,
+            TokenKind.Not => .Not,
+            else => unreachable,
+        };
+        instruction.operand1 = rhs.constant;
+        instruction.source_type = rhs.tp;
         instruction.result_type = res_tp;
         self.ctx.add_instruction(instruction);
 
