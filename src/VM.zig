@@ -46,6 +46,8 @@ pub const OpCode = enum(u8) {
     OpNegateF, // negatef
     OpEq, // eq
     OpEqByte, // eq_byte
+    OpNotEq, // not_eq
+    OpNotEqByte, // not_eq_byte
     OpNot, // not
     OpAnd, // and
     OpOr, // or
@@ -221,6 +223,12 @@ pub const Chunk = struct {
                 },
                 .OpEqByte => { // eq_byte
                     debug.print("<eq_byte>\n", .{});
+                },
+                .OpNotEq => { // not_eq
+                    debug.print("<not_eq>\n", .{});
+                },
+                .OpNotEqByte => { // not_eq_byte
+                    debug.print("<not_eq_byte>\n", .{});
                 },
                 .OpNot => { // not
                     debug.print("<not>\n", .{});
@@ -537,6 +545,16 @@ pub const VM = struct {
                     const a = self.pop_u8();
                     const b = self.pop_u8();
                     self.push_u8(@intFromBool(a == b));
+                },
+                OpCode.OpNotEq => {
+                    const a = self.pop_u64();
+                    const b = self.pop_u64();
+                    self.push_u8(@intFromBool(a != b));
+                },
+                OpCode.OpNotEqByte => {
+                    const a = self.pop_u8();
+                    const b = self.pop_u8();
+                    self.push_u8(@intFromBool(a != b));
                 },
                 OpCode.OpNot => {
                     self.push_u8(@intFromBool(self.pop_u8() == 0));

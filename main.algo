@@ -6,13 +6,11 @@ variable
 
 début
   a := 1
-  b := 2
+  b := 1
   dbg a
   dbg b
 
-  dbg a = b
-  b := 1
-  dbg a = b
+  dbg a <> b
 
   // dbg vrai et vrai // => vrai
   // dbg vrai et faux // => faux

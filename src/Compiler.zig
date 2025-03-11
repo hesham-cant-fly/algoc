@@ -174,6 +174,25 @@ pub const Compiler = struct {
                     chunk.write_op_code(.OpEq);
                 }
             },
+            .NotEq => {
+                root.assert(instruction.result_type != null);
+
+                var tp: Type = undefined;
+                if (instruction.operand1) |con| {
+                    tp = self.compile_constants(chunk, &con);
+                }
+
+                if (instruction.operand2) |con| {
+                    const source_type = self.compile_constants(chunk, &con);
+                    self.cast_to(source_type, tp, chunk);
+                }
+
+                if (tp.is_bool()) {
+                    chunk.write_op_code(.OpNotEqByte);
+                } else {
+                    chunk.write_op_code(.OpNotEq);
+                }
+            },
             .And => {
                 if (instruction.operand1) |con| {
                     _ = self.compile_constants(chunk, &con);
